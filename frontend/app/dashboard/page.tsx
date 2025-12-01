@@ -71,6 +71,8 @@ const AnimatedCounter = ({ value, duration = 1500 }: { value: number; duration?:
   return <span>{count.toLocaleString()}</span>;
 };
 
+type SparklinePoint = { x: number; y: number };
+
 // Modern SaaS-Style Sparkline Chart Component
 const SparklineChart = ({ data, color = 'primary' }: { data: number[]; color?: string }) => {
   const max = Math.max(...data);
@@ -78,14 +80,14 @@ const SparklineChart = ({ data, color = 'primary' }: { data: number[]; color?: s
   const range = max - min || 1;
   
   // Create smooth curve points
-  const points = data.map((value, index) => {
+  const points: SparklinePoint[] = data.map((value, index) => {
     const x = (index / (data.length - 1 || 1)) * 100;
     const y = 100 - ((value - min) / range) * 75 - 12;
     return { x, y };
   });
   
   // Create smooth path using bezier curves
-  const createSmoothPath = (points: typeof points) => {
+  const createSmoothPath = (points: SparklinePoint[]) => {
     if (points.length < 2) return '';
     if (points.length === 2) {
       return `M ${points[0].x},${points[0].y} L ${points[1].x},${points[1].y}`;
