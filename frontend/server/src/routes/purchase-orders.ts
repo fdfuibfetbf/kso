@@ -265,7 +265,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
     let receivedAt = existing.receivedAt;
 
     if (data.status === 'approved' && existing.status !== 'approved') {
-      approvedBy = req.user?.id;
+      approvedBy = req.user?.id ?? null;
       approvedAt = new Date();
     }
 
