@@ -48,6 +48,8 @@ const GRADE_OPTIONS = ['A', 'B', 'C', 'D'];
 const STATUS_OPTIONS = ['A', 'N'];
 const ORIGIN_OPTIONS = ['USA', 'CHINA', 'JAPAN', 'GERMANY', 'INDIA', 'OTHER'];
 
+const STORAGE_KEY = 'partFormDraft_v1';
+
 export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
   const [formData, setFormData] = useState<Part>({
     partNo: '',
@@ -78,10 +80,75 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Load draft from localStorage when creating a new part
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     if (part) {
       setFormData(part);
       setError(''); // Clear any previous errors when part changes
+      return;
+    }
+
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as Part;
+        setFormData({
+          partNo: parsed.partNo || '',
+          masterPartNo: parsed.masterPartNo || '',
+          brand: parsed.brand || '',
+          description: parsed.description || '',
+          mainCategory: parsed.mainCategory || '',
+          subCategory: parsed.subCategory || '',
+          application: parsed.application || '',
+          hsCode: parsed.hsCode || '',
+          uom: parsed.uom || 'NOS',
+          weight: parsed.weight,
+          reOrderLevel: parsed.reOrderLevel ?? 0,
+          cost: parsed.cost,
+          priceA: parsed.priceA,
+          priceB: parsed.priceB,
+          priceM: parsed.priceM,
+          rackNo: parsed.rackNo || '',
+          origin: parsed.origin || '',
+          grade: parsed.grade || 'B',
+          status: parsed.status || 'A',
+          smc: parsed.smc || '',
+          size: parsed.size || '',
+          remarks: parsed.remarks || '',
+          imageUrl1: parsed.imageUrl1,
+          imageUrl2: parsed.imageUrl2,
+        });
+      } catch {
+        // If parsing fails, fall back to default empty form
+        setFormData({
+          partNo: '',
+          masterPartNo: '',
+          brand: '',
+          description: '',
+          mainCategory: '',
+          subCategory: '',
+          application: '',
+          hsCode: '',
+          uom: 'NOS',
+          weight: undefined,
+          reOrderLevel: 0,
+          cost: undefined,
+          priceA: undefined,
+          priceB: undefined,
+          priceM: undefined,
+          rackNo: '',
+          origin: '',
+          grade: 'B',
+          status: 'A',
+          smc: '',
+          size: '',
+          remarks: '',
+          imageUrl1: undefined,
+          imageUrl2: undefined,
+        });
+      }
     } else {
       setFormData({
         partNo: '',
@@ -112,6 +179,14 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
       setError(''); // Clear errors when part is cleared
     }
   }, [part]);
+
+  // Persist draft to localStorage while creating a new part
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (part?.id) return;
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+  }, [formData, part]);
 
   const handleChange = (field: keyof Part, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -303,7 +378,7 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
   };
 
   const handleNew = () => {
-    setFormData({
+    const emptyState: Part = {
       partNo: '',
       masterPartNo: '',
       brand: '',
@@ -326,7 +401,12 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
       smc: '',
       size: '',
       remarks: '',
-    });
+    };
+
+    setFormData(emptyState);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyState));
+    }
     setError('');
   };
 
@@ -363,7 +443,7 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-6 bg-white flex-1 overflow-y-auto scrollbar-hide scroll-smooth">
+      <CardContent className="p-6 bg-white flex-1 overflow-y-auto scroll-smooth scrollbar-visible">
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="p-4 text-sm text-red-700 bg-red-50 border-l-4 border-red-500 rounded-r-md shadow-soft flex items-start gap-3">

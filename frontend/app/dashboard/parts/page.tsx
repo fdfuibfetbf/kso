@@ -161,15 +161,16 @@ export default function PartsPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-120px)] grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 p-3 sm:p-4 md:p-6 bg-gray-50">
+    <div className="min-h-[calc(100vh-120px)] grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 p-2 sm:p-3 md:p-4 bg-gray-50">
       {/* Left Panel - Part/Kit Form with Tabs */}
-      <div className="lg:col-span-4 overflow-y-auto scrollbar-hide scroll-smooth order-1 lg:order-1">
-        <div className="bg-white rounded-xl shadow-soft border border-gray-200">
+      <div className="lg:col-span-3 order-1 lg:order-1 flex flex-col max-h-[calc(100vh-120px)]">
+        <div className="bg-white rounded-xl shadow-soft border border-gray-200 flex flex-col h-full">
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => {
                 setActiveFormTab('part');
+                setActiveListTab('parts');
                 setSelectedKit(null);
               }}
               className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
@@ -183,6 +184,7 @@ export default function PartsPage() {
             <button
               onClick={() => {
                 setActiveFormTab('kit');
+                setActiveListTab('kits');
                 setSelectedPart(null);
               }}
               className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
@@ -196,7 +198,7 @@ export default function PartsPage() {
           </div>
 
           {/* Tab Content */}
-          <div className="p-0">
+          <div className="p-0 flex-1 flex flex-col min-h-0 tab-fade">
             {activeFormTab === 'part' ? (
               <PartForm
                 part={selectedPart}
@@ -215,12 +217,16 @@ export default function PartsPage() {
       </div>
 
       {/* Middle Panel - Models */}
-      <div className="lg:col-span-3 overflow-y-auto scrollbar-hide scroll-smooth order-3 lg:order-2">
-        <ModelsPanel partId={selectedPart?.id} />
+      <div className="lg:col-span-2 overflow-y-auto scroll-smooth order-3 lg:order-2">
+        <ModelsPanel 
+          partId={selectedPart?.id} 
+          partName={selectedPart?.partNo || selectedPart?.description || ''}
+          stockQuantity={selectedPart?.stock?.quantity ?? 0}
+        />
       </div>
 
       {/* Right Panel - Parts/Kits List with Tabs */}
-      <div className="lg:col-span-5 overflow-y-auto scrollbar-hide scroll-smooth order-2 lg:order-3">
+      <div className="lg:col-span-7 overflow-y-auto scroll-smooth order-2 lg:order-3">
         <Card className="h-full bg-white border border-gray-200 shadow-medium rounded-lg overflow-hidden flex flex-col">
           {/* Tabs */}
           <div className="flex border-b border-gray-200 bg-white">
@@ -247,7 +253,7 @@ export default function PartsPage() {
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto tab-fade">
             {activeListTab === 'parts' ? (
               <PartsTable
                 onSelectPart={handleSelectPart}

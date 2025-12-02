@@ -32,6 +32,83 @@ router.get('/part/:partId', async (req: AuthRequest, res) => {
   }
 });
 
+// Get part usage information (kits, categories, stock)
+router.get('/part/:partId/usage', async (req: AuthRequest, res) => {
+  try {
+    const partId = req.params.partId;
+
+    // Get part with stock
+    const part = await prisma.part.findUnique({
+      where: { id: partId },
+      include: {
+        stock: true,
+        kitItems: {
+          include: {
+            kit: {
+              select: {
+                id: true,
+                kitNo: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!part) {
+      return res.status(404).json({ error: 'Part not found' });
+    }
+
+    // Get parts with same mainCategory or subCategory
+    const relatedParts = await prisma.part.findMany({
+      where: {
+        AND: [
+          { id: { not: partId } },
+          {
+            OR: [
+              { mainCategory: part.mainCategory || undefined },
+              { subCategory: part.subCategory || undefined },
+            ],
+          },
+        ],
+      },
+      include: {
+        stock: true,
+        models: true,
+      },
+      take: 10, // Limit to 10 related parts
+    });
+
+    res.json({
+      stock: part.stock,
+      kits: part.kitItems.map(item => ({
+        kitId: item.kit.id,
+        kitNo: item.kit.kitNo,
+        kitName: item.kit.name,
+        quantity: item.quantity,
+        status: item.kit.status,
+      })),
+      categories: {
+        mainCategory: part.mainCategory,
+        subCategory: part.subCategory,
+      },
+      relatedParts: relatedParts.map(p => ({
+        partNo: p.partNo,
+        description: p.description,
+        mainCategory: p.mainCategory,
+        subCategory: p.subCategory,
+        stock: p.stock?.quantity || 0,
+        modelCount: p.models.length,
+      })),
+    });
+  } catch (error) {
+    console.error('Get part usage error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Add model to part
 router.post('/part/:partId', async (req: AuthRequest, res) => {
   try {

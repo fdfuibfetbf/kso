@@ -23,6 +23,19 @@ router.post('/register', async (req, res) => {
   try {
     const { email, password, name } = registerSchema.parse(req.body);
 
+    // Check database connection
+    try {
+      await prisma.$connect();
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError);
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        message: process.env.VERCEL 
+          ? 'Please configure a cloud database in Vercel environment variables. SQLite file databases are not supported on Vercel.'
+          : 'Please check your DATABASE_URL configuration.'
+      });
+    }
+
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -98,6 +111,19 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
 
+    // Check database connection
+    try {
+      await prisma.$connect();
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError);
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        message: process.env.VERCEL 
+          ? 'Please configure a cloud database in Vercel environment variables. SQLite file databases are not supported on Vercel.'
+          : 'Please check your DATABASE_URL configuration.'
+      });
+    }
+
     // Find user
     const user = await prisma.user.findUnique({
       where: { email },
@@ -142,13 +168,40 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: error.errors });
     }
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // Provide more specific error messages
+    if (error.message?.includes('DATABASE_URL') || error.message?.includes('connection')) {
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        message: process.env.VERCEL 
+          ? 'Please configure a cloud database in Vercel environment variables. SQLite file databases are not supported on Vercel.'
+          : 'Please check your DATABASE_URL configuration.'
+      });
+    }
+    
+    res.status(500).json({ 
+      error: error.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
 // Get current user
 router.get('/me', verifyToken, async (req: AuthRequest, res) => {
   try {
+    // Check database connection
+    try {
+      await prisma.$connect();
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError);
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        message: process.env.VERCEL 
+          ? 'Please configure a cloud database in Vercel environment variables. SQLite file databases are not supported on Vercel.'
+          : 'Please check your DATABASE_URL configuration.'
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
       select: {
@@ -164,9 +217,23 @@ router.get('/me', verifyToken, async (req: AuthRequest, res) => {
     }
 
     res.json({ user });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // Provide more specific error messages
+    if (error.message?.includes('DATABASE_URL') || error.message?.includes('connection')) {
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        message: process.env.VERCEL 
+          ? 'Please configure a cloud database in Vercel environment variables. SQLite file databases are not supported on Vercel.'
+          : 'Please check your DATABASE_URL configuration.'
+      });
+    }
+    
+    res.status(500).json({ 
+      error: error.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

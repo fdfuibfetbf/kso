@@ -54,9 +54,45 @@ body {
     display: none;  /* Chrome, Safari and Opera */
   }
   
+  /* Visible scrollbar with custom styling */
+  .scrollbar-visible {
+    scrollbar-width: thin;  /* Firefox */
+    scrollbar-color: #94a3b8 #f1f5f9;  /* Firefox: thumb and track */
+  }
+  
+  .scrollbar-visible::-webkit-scrollbar {
+    width: 10px;  /* Chrome, Safari and Opera - slightly wider for better visibility */
+  }
+  
+  .scrollbar-visible::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 5px;
+    border: 1px solid #e2e8f0;
+  }
+  
+  .scrollbar-visible::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 5px;
+    border: 1px solid #cbd5e1;
+  }
+  
+  .scrollbar-visible::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+    border-color: #94a3b8;
+  }
+  
+  .scrollbar-visible::-webkit-scrollbar-thumb:active {
+    background: #475569;
+  }
+  
   /* Smooth scrolling */
   .scroll-smooth {
     scroll-behavior: smooth;
+  }
+
+  /* Simple fade-in for tab content */
+  .tab-fade {
+    animation: fadeIn 0.25s ease-out;
   }
   
   /* Fade in animation */
@@ -230,6 +266,76 @@ body {
       opacity: 1;
       transform: translateX(0);
     }
+  }
+
+  /* Kit Item Animations */
+  @keyframes kitItemEnter {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+      max-height: 0;
+      margin-bottom: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      max-height: 500px;
+      margin-bottom: 0.75rem;
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+    }
+  }
+
+  @keyframes kitItemExit {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      max-height: 500px;
+      margin-bottom: 0.75rem;
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+      max-height: 0;
+      margin-bottom: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+  }
+
+  .kit-item-enter {
+    animation: kitItemEnter 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .kit-item-exit {
+    animation: kitItemExit 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.2s ease-out forwards;
+  }
+
+  /* Smooth card hover effect */
+  .kit-item-card {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-color: #e5e7eb;
+  }
+
+  .kit-item-card:hover {
+    border-color: #ff6b35;
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+    transform: translateY(-2px);
   }
 
   /* Animated Dropdown Styles */

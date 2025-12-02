@@ -6,8 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import AnimatedSelect from '@/components/ui/animated-select';
 import api from '@/lib/api';
 import { Part } from './PartForm';
+
+export interface PartWithStock extends Part {
+  stock?: {
+    quantity: number;
+  };
+}
 
 export interface Kit {
   id?: string;
@@ -25,7 +32,7 @@ export interface Kit {
 export interface KitItem {
   id?: string;
   partId: string;
-  part?: Part;
+  part?: PartWithStock;
   quantity: number;
 }
 
@@ -44,9 +51,11 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
     status: 'A' as 'A' | 'I',
   });
   const [items, setItems] = useState<KitItem[]>([]);
-  const [availableParts, setAvailableParts] = useState<Part[]>([]);
+  const [availableParts, setAvailableParts] = useState<PartWithStock[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [stockError, setStockError] = useState<{ [key: number]: string }>({});
+  const [removingIndex, setRemovingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchParts();
@@ -86,21 +95,65 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
   };
 
   const addItem = () => {
-    if (items.length >= 10) {
-      setError('Maximum 10 items allowed per kit');
-      return;
-    }
     setItems([...items, { partId: '', quantity: 1 }]);
+    // Clear stock error for new item
+    setStockError({});
   };
 
   const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
+    setRemovingIndex(index);
+    // Wait for animation to complete before removing
+    setTimeout(() => {
+      setItems(items.filter((_, i) => i !== index));
+      setRemovingIndex(null);
+      // Clear stock error for removed item
+      const newStockError = { ...stockError };
+      delete newStockError[index];
+      setStockError(newStockError);
+    }, 250);
   };
 
   const updateItem = (index: number, field: keyof KitItem, value: any) => {
     const updated = [...items];
     updated[index] = { ...updated[index], [field]: value };
+    
+    // Validate stock when part or quantity changes
+    if (field === 'partId' || field === 'quantity') {
+      validateItemStock(updated, index);
+    }
+    
     setItems(updated);
+  };
+
+  const validateItemStock = (itemsList: KitItem[], index: number) => {
+    const item = itemsList[index];
+    const errors = { ...stockError };
+    
+    if (item.partId && item.quantity > 0) {
+      const selectedPart = availableParts.find(p => p.id === item.partId);
+      if (selectedPart) {
+        const availableStock = selectedPart.stock?.quantity || 0;
+        
+        // Check if part is already used in other items in this kit
+        const usedInOtherItems = itemsList
+          .filter((it, idx) => idx !== index && it.partId === item.partId)
+          .reduce((sum, it) => sum + it.quantity, 0);
+        
+        const totalNeeded = usedInOtherItems + item.quantity;
+        
+        if (totalNeeded > availableStock) {
+          errors[index] = `Item not available in stock. Available: ${availableStock}, Needed: ${totalNeeded}`;
+        } else {
+          delete errors[index];
+        }
+      } else {
+        errors[index] = 'Part not found';
+      }
+    } else {
+      delete errors[index];
+    }
+    
+    setStockError(errors);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,14 +165,37 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
       return;
     }
 
-    if (items.length < 1 || items.length > 10) {
-      setError('Kit must have between 1 and 10 items');
+    if (items.length < 1) {
+      setError('Kit must have at least one item');
       return;
     }
 
     // Validate all items have partId
     if (items.some(item => !item.partId)) {
       setError('Please select a part for all items');
+      return;
+    }
+
+    // Validate stock availability for all items
+    const stockValidationErrors: string[] = [];
+    items.forEach((item, index) => {
+      const selectedPart = availableParts.find(p => p.id === item.partId);
+      if (selectedPart) {
+        const availableStock = selectedPart.stock?.quantity || 0;
+        const totalNeeded = items
+          .filter(it => it.partId === item.partId)
+          .reduce((sum, it) => sum + it.quantity, 0);
+        
+        if (totalNeeded > availableStock) {
+          stockValidationErrors.push(
+            `${selectedPart.partNo}: Available stock is ${availableStock}, but ${totalNeeded} is needed`
+          );
+        }
+      }
+    });
+
+    if (stockValidationErrors.length > 0) {
+      setError(`Stock not available:\n${stockValidationErrors.join('\n')}`);
       return;
     }
 
@@ -180,8 +256,21 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded text-sm">
-              {error}
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1 whitespace-pre-line">{error}</div>
+                <button
+                  onClick={() => setError('')}
+                  className="text-red-600 hover:text-red-800 flex-shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
 
@@ -231,71 +320,122 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
           </div>
 
           <div>
-            <Label htmlFor="status">Status</Label>
-            <select
-              id="status"
+            <AnimatedSelect
+              label="Status"
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as 'A' | 'I' })}
-              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="A">Active</option>
-              <option value="I">Inactive</option>
-            </select>
+              onChange={(value) => setFormData({ ...formData, status: value as 'A' | 'I' })}
+              options={[
+                { value: 'A', label: 'Active' },
+                { value: 'I', label: 'Inactive' },
+              ]}
+              placeholder="Select status"
+            />
           </div>
 
           <div className="border-t pt-4">
             <div className="flex items-center justify-between mb-3">
-              <Label>Kit Items ({items.length}/10)</Label>
+              <Label>Kit Items ({items.length})</Label>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={addItem}
-                disabled={items.length >= 10}
+                className="border-primary-300 text-primary-700 hover:bg-primary-50 hover:border-primary-400 transition-all duration-200 shadow-sm hover:shadow-md"
               >
-                + Add Item
+                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Item
               </Button>
             </div>
 
             {items.length === 0 && (
-              <p className="text-sm text-gray-500 text-center py-4">
-                Click "Add Item" to add parts to this kit
-              </p>
+              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50/50 transition-all duration-300">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-1">No items added yet</p>
+                    <p className="text-xs text-gray-500">Click "Add Item" to start building your kit</p>
+                  </div>
+                </div>
+              </div>
             )}
 
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-visible pr-2">
               {items.map((item, index) => (
-                <div key={index} className="border border-gray-200 rounded p-3 bg-gray-50">
-                  <div className="flex items-start justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Item {index + 1}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeItem(index)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-xs">Part *</Label>
-                      <select
-                        value={item.partId}
-                        onChange={(e) => updateItem(index, 'partId', e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                        required
+                <div
+                  key={`item-${index}-${item.partId || 'new'}`}
+                  className={`kit-item-card border rounded-lg bg-white shadow-sm overflow-hidden ${
+                    removingIndex === index ? 'kit-item-exit' : 'kit-item-enter'
+                  }`}
+                  style={{ 
+                    animationDelay: removingIndex === index ? '0s' : `${Math.min(index * 0.03, 0.3)}s` 
+                  }}
+                >
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white text-xs font-semibold shadow-sm">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900">Item {index + 1}</h4>
+                          <p className="text-xs text-gray-500">Select part and quantity</p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeItem(index)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors duration-200"
                       >
-                        <option value="">Select part</option>
-                        {availableParts.map((part) => (
-                          <option key={part.id} value={part.id}>
-                            {part.partNo} - {part.description || 'No description'}
-                          </option>
-                        ))}
-                      </select>
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Remove
+                      </Button>
                     </div>
+
+                    <div className="space-y-2">
+                    <div>
+                      <AnimatedSelect
+                        label="Part *"
+                        value={item.partId}
+                        onChange={(value) => updateItem(index, 'partId', value)}
+                        options={[
+                          { value: '', label: 'Select part' },
+                          ...availableParts.map((part) => {
+                            const stockQty = part.stock?.quantity || 0;
+                            const isAvailable = stockQty > 0;
+                            const label = isAvailable
+                              ? `${part.partNo} - ${part.description || 'No description'} (Stock: ${stockQty})`
+                              : `${part.partNo} - ${part.description || 'No description'} (Out of Stock)`;
+                            return {
+                              value: part.id || '',
+                              label,
+                            };
+                          }),
+                        ]}
+                        placeholder="Select part"
+                        className="text-sm"
+                      />
+                    </div>
+
+                    {stockError[index] && (
+                      <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-r-md mb-3 animate-fadeIn">
+                        <div className="flex items-start gap-2">
+                          <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-sm font-medium">{stockError[index]}</span>
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <Label className="text-xs">Quantity *</Label>
@@ -304,20 +444,58 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
                         min="1"
                         value={item.quantity}
                         onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                        className="text-sm"
+                        className={`text-sm ${stockError[index] ? 'border-red-500' : ''}`}
                         required
                       />
+                      {item.partId && (() => {
+                        const selectedPart = availableParts.find(p => p.id === item.partId);
+                        if (selectedPart) {
+                          const availableStock = selectedPart.stock?.quantity || 0;
+                          const usedInOtherItems = items
+                            .filter((it, idx) => idx !== index && it.partId === item.partId)
+                            .reduce((sum, it) => sum + it.quantity, 0);
+                          const remainingStock = availableStock - usedInOtherItems;
+                          return (
+                            <p className={`text-xs mt-1 ${remainingStock < item.quantity ? 'text-red-600' : 'text-gray-500'}`}>
+                              Available: {remainingStock} | Total needed: {usedInOtherItems + item.quantity}
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     {item.partId && (() => {
                       const selectedPart = availableParts.find(p => p.id === item.partId);
                       return selectedPart && (
-                        <div className="text-xs text-gray-600 bg-white p-2 rounded">
-                          <div>Cost: ${selectedPart.cost || 0}</div>
-                          <div>Total: ${(selectedPart.cost || 0) * item.quantity}</div>
+                        <div className="mt-3 bg-gradient-to-br from-gray-50 to-white p-4 rounded-lg border border-gray-200 shadow-sm transition-all duration-200">
+                          <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
+                            <span className="text-sm font-semibold text-gray-900">Part Details</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm transition-all duration-200 ${
+                              (selectedPart.stock?.quantity || 0) > 0 
+                                ? 'bg-green-100 text-green-700 border border-green-200' 
+                                : 'bg-red-100 text-red-700 border border-red-200'
+                            }`}>
+                              <svg className="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              Stock: {selectedPart.stock?.quantity || 0}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white p-2 rounded border border-gray-100">
+                              <p className="text-xs text-gray-500 mb-1">Unit Cost</p>
+                              <p className="text-sm font-semibold text-gray-900">${(selectedPart.cost || 0).toFixed(2)}</p>
+                            </div>
+                            <div className="bg-primary-50 p-2 rounded border border-primary-200">
+                              <p className="text-xs text-primary-600 mb-1">Total Cost</p>
+                              <p className="text-sm font-bold text-primary-700">${((selectedPart.cost || 0) * item.quantity).toFixed(2)}</p>
+                            </div>
+                          </div>
                         </div>
                       );
                     })()}
+                    </div>
                   </div>
                 </div>
               ))}

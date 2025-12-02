@@ -1,12 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import api from '@/lib/api';
 
 export interface PartModel {
@@ -19,58 +15,78 @@ export interface PartModel {
 
 interface ModelsPanelProps {
   partId?: string;
+  partName?: string;
+  stockQuantity?: number;
 }
 
-export default function ModelsPanel({ partId }: ModelsPanelProps) {
+export default function ModelsPanel({ partId, partName, stockQuantity: initialStockQuantity = 0 }: ModelsPanelProps) {
   const [models, setModels] = useState<PartModel[]>([]);
+  const [stockQuantity, setStockQuantity] = useState<number>(initialStockQuantity);
   const [loading, setLoading] = useState(false);
+
+  const loadModels = useCallback(async () => {
+    if (!partId) {
+      setModels([]);
+      setStockQuantity(0);
+      return;
+    }
+    setLoading(true);
+    try {
+      // Fetch models
+      const modelsResponse = await api.get(`/models/part/${partId}`);
+      setModels(modelsResponse.data?.models || []);
+      
+      // Fetch part with stock
+      const partResponse = await api.get(`/parts/${partId}`);
+      const stockQty = partResponse.data?.part?.stock?.quantity ?? 0;
+      setStockQuantity(stockQty);
+    } catch (error) {
+      console.error('Failed to load models:', error);
+      setModels([]);
+      setStockQuantity(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [partId]);
+
+  useEffect(() => {
+    // Update stock quantity when prop changes
+    setStockQuantity(initialStockQuantity);
+  }, [initialStockQuantity]);
 
   useEffect(() => {
     if (partId) {
       loadModels();
     } else {
       setModels([]);
+      setStockQuantity(0);
     }
-  }, [partId]);
-
-  const loadModels = async () => {
-    if (!partId) return;
-    setLoading(true);
-    try {
-      const response = await api.get(`/models/part/${partId}`);
-      setModels(response.data.models);
-    } catch (error) {
-      console.error('Failed to load models:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  }, [partId, loadModels]);
 
   return (
     <Card className="h-full bg-white border border-gray-200 shadow-medium rounded-lg overflow-hidden flex flex-col">
-      <CardHeader className="bg-white border-b border-gray-200 px-6 py-5 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="h-10 w-1 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full"></div>
-          <div>
-            <CardTitle className="text-xl font-semibold text-gray-900">Model Numbers & Quantities</CardTitle>
-            <p className="text-sm text-gray-500 mt-0.5">View part model associations</p>
+      <CardHeader className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-1 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full"></div>
+          <div className="flex-1">
+            <CardTitle className="text-lg font-semibold text-gray-900">Model Numbers & Quantities</CardTitle>
+            <p className="text-xs text-gray-500 mt-0.5">View part model associations</p>
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-0 flex-1 overflow-y-auto scrollbar-hide scroll-smooth bg-white">
-        <div className="overflow-x-auto">
-          <Table>
+        <div className="w-full">
+          <Table className="w-full">
             <TableHeader>
               <TableRow className="bg-gray-50 border-b-2 border-gray-200">
-                <TableHead className="font-semibold text-gray-700 py-4 px-6 text-left">Model No</TableHead>
-                <TableHead className="font-semibold text-gray-700 py-4 px-6 text-left">Qty Used</TableHead>
+                <TableHead className="font-semibold text-gray-700 py-2 px-3 text-left text-sm">Model No</TableHead>
+                <TableHead className="font-semibold text-gray-700 py-2 px-3 text-left text-sm">Quantity Available</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={2} className="text-center py-12">
+                  <TableCell colSpan={2} className="text-center py-6">
                     <div className="flex flex-col items-center gap-2">
                       <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -80,36 +96,40 @@ export default function ModelsPanel({ partId }: ModelsPanelProps) {
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : models.length === 0 ? (
+              ) : !partId ? (
                 <TableRow>
-                  <TableCell colSpan={2} className="text-center py-12">
-                    <p className="text-sm text-gray-500">No models found for this part.</p>
+                  <TableCell colSpan={2} className="text-center py-6">
+                    <p className="text-sm text-gray-500">Select a part to view model associations</p>
                   </TableCell>
                 </TableRow>
-              ) : (
+              ) : models.length > 0 ? (
                 models.map((model) => (
                   <TableRow 
                     key={model.id} 
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
-                    <TableCell className="font-medium text-gray-900 py-4 px-6">
+                    <TableCell className="font-medium text-gray-900 py-2 px-3 text-sm">
                       {model.modelNo}
                     </TableCell>
-                    <TableCell className="text-gray-700 py-4 px-6">
-                      <span className="inline-flex items-center gap-2">
-                        <span className="text-gray-400 font-bold">X</span>
-                        <span>{model.qtyUsed}</span>
-                      </span>
+                    <TableCell className="text-gray-700 py-2 px-3 text-sm">
+                      <span className="font-medium text-gray-900">{stockQuantity}</span>
                     </TableCell>
                   </TableRow>
                 ))
+              ) : (
+                <TableRow>
+                  <TableCell className="font-medium text-gray-900 py-2 px-3 text-sm">
+                    {partName || '-'}
+                  </TableCell>
+                  <TableCell className="text-gray-700 py-2 px-3 text-sm">
+                    <span className="font-medium text-gray-900">{stockQuantity}</span>
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
-
       </CardContent>
     </Card>
   );
 }
-

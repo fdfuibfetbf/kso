@@ -49,8 +49,6 @@ const AnimatedCounter = ({ value, duration = 1500 }: { value: number; duration?:
   const [count, setCount] = useState(0);
   
   useEffect(() => {
-    if (value === 0) return;
-    
     let startTime: number;
     const startValue = 0;
     
@@ -62,10 +60,16 @@ const AnimatedCounter = ({ value, duration = 1500 }: { value: number; duration?:
       
       if (progress < 1) {
         requestAnimationFrame(animate);
+      } else {
+        setCount(value); // Ensure final value is set
       }
     };
     
-    requestAnimationFrame(animate);
+    if (value === 0) {
+      setCount(0);
+    } else {
+      requestAnimationFrame(animate);
+    }
   }, [value, duration]);
   
   return <span>{count.toLocaleString()}</span>;
@@ -741,18 +745,18 @@ export default function DashboardPage() {
     try {
       const [partsRes, categoriesRes, kitsRes, suppliersRes, ordersRes] = await Promise.all([
         api.get('/parts?limit=1').catch(() => ({ data: { pagination: { total: 0 } } })),
-        api.get('/categories').catch(() => ({ data: [] })),
-        api.get('/kits').catch(() => ({ data: [] })),
-        api.get('/suppliers').catch(() => ({ data: [] })),
-        api.get('/purchase-orders').catch(() => ({ data: [] })),
+        api.get('/categories').catch(() => ({ data: { categories: [] } })),
+        api.get('/kits').catch(() => ({ data: { kits: [] } })),
+        api.get('/suppliers').catch(() => ({ data: { suppliers: [] } })),
+        api.get('/purchase-orders').catch(() => ({ data: { purchaseOrders: [] } })),
       ]);
 
       setStats({
-        totalParts: partsRes.data.pagination?.total || 0,
-        totalCategories: categoriesRes.data.length || 0,
-        totalKits: kitsRes.data.length || 0,
-        totalSuppliers: suppliersRes.data.length || 0,
-        totalPurchaseOrders: ordersRes.data.purchaseOrders?.length || ordersRes.data.length || 0,
+        totalParts: partsRes.data.pagination?.total || partsRes.data.total || 0,
+        totalCategories: categoriesRes.data?.categories?.length || (Array.isArray(categoriesRes.data) ? categoriesRes.data.length : 0),
+        totalKits: kitsRes.data?.kits?.length || (Array.isArray(kitsRes.data) ? kitsRes.data.length : 0),
+        totalSuppliers: suppliersRes.data?.suppliers?.length || (Array.isArray(suppliersRes.data) ? suppliersRes.data.length : 0),
+        totalPurchaseOrders: ordersRes.data?.purchaseOrders?.length || (Array.isArray(ordersRes.data) ? ordersRes.data.length : 0),
         lowStockItems: 0,
       });
 

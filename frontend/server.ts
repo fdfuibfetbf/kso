@@ -67,15 +67,26 @@ app.prepare().then(async () => {
   console.log('DATABASE_URL:', process.env.DATABASE_URL.replace(/file:.*\//, 'file:.../'));
 
   // Initialize Prisma client early to catch any connection errors
+  // In Vercel/production, we handle this more gracefully
   try {
     const { prisma } = await import('./lib/utils/prisma');
-    // Test connection
-    await prisma.$connect();
-    console.log('✓ Database connection established');
-  } catch (error) {
+    // Test connection (skip in Vercel as it's serverless)
+    if (!process.env.VERCEL) {
+      await prisma.$connect();
+      console.log('✓ Database connection established');
+    } else {
+      console.log('✓ Prisma client initialized (serverless mode)');
+    }
+  } catch (error: any) {
     console.error('✗ Database connection failed:', error);
-    console.error('Please check your DATABASE_URL in .env or .env.local');
-    process.exit(1);
+    if (process.env.VERCEL) {
+      console.error('⚠ Vercel deployment detected. SQLite file databases are not supported.');
+      console.error('⚠ Please configure a cloud database (PostgreSQL, MySQL, or Turso) in Vercel environment variables.');
+      console.error('⚠ The app will continue but database operations may fail.');
+    } else {
+      console.error('Please check your DATABASE_URL in .env or .env.local');
+      process.exit(1);
+    }
   }
 
   // Middleware
