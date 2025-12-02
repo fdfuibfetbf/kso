@@ -70,46 +70,50 @@ export default function SalesQuotation() {
   const fetchQuotations = async () => {
     setLoading(true);
     try {
-      // Mock data - replace with actual API call
-      const mockQuotations: SalesQuotation[] = [
-        {
-          id: '1',
-          quotationNo: 'SQ-2024-001',
-          customerName: 'ABC Corporation',
-          customerEmail: 'contact@abccorp.com',
-          quotationDate: '2024-01-15',
-          validUntil: '2024-02-15',
-          status: 'sent',
-          subTotal: 5000,
-          tax: 500,
-          discount: 0,
-          totalAmount: 5500,
-          items: [
-            { partNo: 'P001', description: 'Part 1', quantity: 10, unitPrice: 500, totalPrice: 5000 },
-          ],
-        },
-      ];
-      setQuotations(mockQuotations);
-    } catch (error) {
+      const response = await api.get('/sales-quotations');
+      const quotationsData = response.data.quotations || [];
+      const transformedQuotations = quotationsData.map((q: any) => ({
+        ...q,
+        quotationDate: q.quotationDate ? new Date(q.quotationDate).toISOString().split('T')[0] : '',
+        validUntil: q.validUntil ? new Date(q.validUntil).toISOString().split('T')[0] : '',
+        items: q.items || [],
+      }));
+      setQuotations(transformedQuotations);
+    } catch (error: any) {
       console.error('Failed to fetch quotations:', error);
+      setQuotations([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const calculateTotals = (items: QuotationItem[], tax: number, discount: number) => {
+    const subTotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+    const totalAmount = subTotal - discount + tax;
+    return { subTotal, totalAmount };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.items.length === 0) {
+      alert('Please add at least one item');
+      return;
+    }
     try {
       setLoading(true);
+      const totals = calculateTotals(formData.items, formData.tax, formData.discount);
+      const submitData = { ...formData, ...totals };
+      
       if (selectedQuotation?.id) {
-        console.log('Update quotation:', formData);
+        await api.put(`/sales-quotations/${selectedQuotation.id}`, submitData);
       } else {
-        console.log('Create quotation:', formData);
+        await api.post('/sales-quotations', submitData);
       }
       resetForm();
       fetchQuotations();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save quotation:', error);
+      alert(error.response?.data?.error || 'Failed to save quotation');
     } finally {
       setLoading(false);
     }
@@ -118,9 +122,14 @@ export default function SalesQuotation() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this quotation?')) return;
     try {
+      setLoading(true);
+      await api.delete(`/sales-quotations/${id}`);
       fetchQuotations();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete quotation:', error);
+      alert(error.response?.data?.error || 'Failed to delete quotation');
+    } finally {
+      setLoading(false);
     }
   };
 

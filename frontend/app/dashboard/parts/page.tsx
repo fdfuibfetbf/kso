@@ -161,9 +161,9 @@ export default function PartsPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-120px)] grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 bg-gray-50">
+    <div className="min-h-[calc(100vh-120px)] grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 p-3 sm:p-4 md:p-6 bg-gray-50">
       {/* Left Panel - Part/Kit Form with Tabs */}
-      <div className="lg:col-span-4 overflow-y-auto scrollbar-hide scroll-smooth">
+      <div className="lg:col-span-4 overflow-y-auto scrollbar-hide scroll-smooth order-1 lg:order-1">
         <div className="bg-white rounded-xl shadow-soft border border-gray-200">
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
@@ -215,12 +215,12 @@ export default function PartsPage() {
       </div>
 
       {/* Middle Panel - Models */}
-      <div className="lg:col-span-3 overflow-y-auto scrollbar-hide scroll-smooth">
+      <div className="lg:col-span-3 overflow-y-auto scrollbar-hide scroll-smooth order-3 lg:order-2">
         <ModelsPanel partId={selectedPart?.id} />
       </div>
 
       {/* Right Panel - Parts/Kits List with Tabs */}
-      <div className="lg:col-span-5 overflow-y-auto scrollbar-hide scroll-smooth">
+      <div className="lg:col-span-5 overflow-y-auto scrollbar-hide scroll-smooth order-2 lg:order-3">
         <Card className="h-full bg-white border border-gray-200 shadow-medium rounded-lg overflow-hidden flex flex-col">
           {/* Tabs */}
           <div className="flex border-b border-gray-200 bg-white">

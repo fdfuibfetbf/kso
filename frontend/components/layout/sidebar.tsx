@@ -104,6 +104,15 @@ export default function Sidebar({ isCollapsed, isHovered = false, onToggle, onMo
       path: '/dashboard/sales',
     },
     {
+      label: 'Accounts',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+      path: '/dashboard/accounts',
+    },
+    {
       label: 'Settings',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,13 +151,15 @@ export default function Sidebar({ isCollapsed, isHovered = false, onToggle, onMo
   };
 
   return (
-    <div 
-      className="bg-white border-r border-gray-200 h-screen fixed left-0 top-0 w-20 flex flex-col items-center py-6 z-50"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
-      {/* Menu Items */}
-      <nav className="flex flex-col items-center gap-3 flex-1 w-full px-2">
+    <>
+      {/* Desktop Sidebar */}
+      <div 
+        className="hidden sm:flex bg-white border-r border-gray-200 h-screen fixed left-0 top-0 w-16 sm:w-20 flex-col items-center py-4 sm:py-6 z-50"
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
+        {/* Menu Items */}
+        <nav className="flex flex-col items-center gap-2 sm:gap-3 flex-1 w-full px-1 sm:px-2">
         {menuItems.map((item) => {
           const active = isActive(item.path);
           return (
@@ -156,8 +167,8 @@ export default function Sidebar({ isCollapsed, isHovered = false, onToggle, onMo
               key={item.label}
               onClick={() => handleItemClick(item)}
               className={`
-                relative w-12 h-12 rounded-xl flex items-center justify-center
-                dock-icon group
+                relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center
+                dock-icon group transition-all
                 ${active 
                   ? 'bg-primary-500 text-white dock-icon-active' 
                   : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
@@ -168,12 +179,12 @@ export default function Sidebar({ isCollapsed, isHovered = false, onToggle, onMo
                 {item.icon}
               </div>
               {item.badge && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium z-20">
+                <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-[10px] sm:text-xs rounded-full flex items-center justify-center font-medium z-20">
                   {item.badge}
                 </span>
               )}
-              {/* Tooltip */}
-              <span className="dock-tooltip">
+              {/* Tooltip - only on desktop */}
+              <span className="dock-tooltip hidden sm:block">
                 {item.label}
               </span>
             </button>
@@ -181,5 +192,39 @@ export default function Sidebar({ isCollapsed, isHovered = false, onToggle, onMo
         })}
       </nav>
     </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-inset-bottom">
+        <nav className="flex items-center justify-around px-2 py-2 max-h-20 overflow-x-auto scrollbar-hide">
+          {menuItems.slice(0, 6).map((item) => {
+            const active = isActive(item.path);
+            return (
+              <button
+                key={item.label}
+                onClick={() => handleItemClick(item)}
+                className={`
+                  flex flex-col items-center justify-center gap-1 min-w-[60px] py-2 px-2 rounded-lg
+                  transition-all active:scale-95
+                  ${active 
+                    ? 'text-primary-500 bg-primary-50' 
+                    : 'text-gray-500 active:bg-gray-100'
+                  }
+                `}
+              >
+                <div className="w-5 h-5">
+                  {item.icon}
+                </div>
+                <span className="text-[10px] font-medium truncate w-full text-center">
+                  {item.label.length > 8 ? item.label.substring(0, 7) + '...' : item.label}
+                </span>
+                {item.badge && (
+                  <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full border border-white"></span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </>
   );
 }

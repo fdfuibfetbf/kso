@@ -129,10 +129,10 @@ export default function CategoriesPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Category Management</h1>
-        <p className="text-sm text-gray-500 mt-1">Add and manage product categories</p>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Category Management</h1>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">Add and manage product categories</p>
       </div>
 
       {error && (
@@ -147,7 +147,7 @@ export default function CategoriesPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Form */}
         <div className="lg:col-span-1">
           <Card>

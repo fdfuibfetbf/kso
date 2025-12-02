@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -53,6 +53,9 @@ model Part {
   kitItems     KitItem[]
   purchaseOrderItems PurchaseOrderItem[]
   salesInvoiceItems SalesInvoiceItem[]
+  salesQuotationItems SalesQuotationItem[]
+  deliveryChallanItems DeliveryChallanItem[]
+  salesReturnItems SalesReturnItem[]
 }
 
 model PartModel {
@@ -184,6 +187,7 @@ model SalesInvoice {
   id              String              @id @default(cuid())
   invoiceNo       String              @unique
   quotationId     String?
+  quotation       SalesQuotation?     @relation("QuotationToInvoice", fields: [quotationId], references: [id], onDelete: SetNull)
   customerName    String
   customerEmail   String?
   customerPhone   String?
@@ -202,6 +206,8 @@ model SalesInvoice {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   items           SalesInvoiceItem[]
+  deliveryChallans DeliveryChallan[]
+  salesReturns    SalesReturn[]
 
   @@index([invoiceNo])
   @@index([status])
@@ -244,6 +250,202 @@ model PurchaseOrderItem {
   updatedAt       DateTime       @updatedAt
 
   @@index([purchaseOrderId])
+  @@index([partId])
+}
+
+model MainGroup {
+  id          String     @id @default(cuid())
+  code        Int        @unique // Numeric code like 1, 2, 3, etc.
+  name        String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  subgroups   SubGroup[]
+
+  @@index([code])
+}
+
+model SubGroup {
+  id          String     @id @default(cuid())
+  mainGroupId String
+  mainGroup   MainGroup  @relation(fields: [mainGroupId], references: [id], onDelete: Cascade)
+  code        String     // Code like "101", "102", etc.
+  name        String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  accounts    Account[]
+
+  @@index([mainGroupId])
+  @@index([code])
+}
+
+model Account {
+  id          String     @id @default(cuid())
+  subGroupId  String
+  subGroup    SubGroup   @relation(fields: [subGroupId], references: [id], onDelete: Cascade)
+  code        String     // Full account code like "101001", "102008", etc.
+  name        String
+  status      String     @default("Active") // "Active" or "Inactive"
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([subGroupId])
+  @@index([code])
+  @@index([status])
+}
+
+model SalesInquiry {
+  id            String   @id @default(cuid())
+  inquiryNo     String   @unique
+  customerName  String
+  customerEmail String?
+  customerPhone String?
+  customerAddress String?
+  inquiryDate   DateTime @default(now())
+  status        String   @default("new") // new, contacted, quoted, converted, lost
+  subject       String
+  description   String?
+  followUpDate  DateTime?
+  notes         String?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([inquiryNo])
+  @@index([status])
+  @@index([inquiryDate])
+  @@index([customerName])
+}
+
+model SalesQuotation {
+  id              String                @id @default(cuid())
+  quotationNo     String                @unique
+  inquiryId       String?
+  customerName    String
+  customerEmail   String?
+  customerPhone   String?
+  customerAddress String?
+  quotationDate   DateTime              @default(now())
+  validUntil      DateTime
+  status          String                @default("draft") // draft, sent, accepted, rejected, expired
+  subTotal        Float                 @default(0)
+  tax             Float                 @default(0)
+  discount        Float                 @default(0)
+  totalAmount     Float                 @default(0)
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  items           SalesQuotationItem[]
+  invoices        SalesInvoice[]        @relation("QuotationToInvoice")
+
+  @@index([quotationNo])
+  @@index([status])
+  @@index([quotationDate])
+  @@index([customerName])
+}
+
+model SalesQuotationItem {
+  id              String         @id @default(cuid())
+  salesQuotationId String
+  salesQuotation  SalesQuotation @relation(fields: [salesQuotationId], references: [id], onDelete: Cascade)
+  partId          String?
+  part            Part?          @relation(fields: [partId], references: [id], onDelete: SetNull)
+  partNo          String
+  description     String?
+  quantity        Int            @default(1)
+  unitPrice       Float
+  totalPrice      Float
+  uom             String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([salesQuotationId])
+  @@index([partId])
+}
+
+model DeliveryChallan {
+  id              String                @id @default(cuid())
+  challanNo       String                @unique
+  invoiceId       String?
+  salesInvoice    SalesInvoice?         @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  customerName    String
+  customerEmail   String?
+  customerPhone   String?
+  customerAddress String?
+  deliveryDate     DateTime              @default(now())
+  deliveryAddress String?
+  vehicleNo       String?
+  driverName      String?
+  status          String                @default("draft") // draft, dispatched, delivered, cancelled
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  items           DeliveryChallanItem[]
+
+  @@index([challanNo])
+  @@index([status])
+  @@index([deliveryDate])
+  @@index([customerName])
+}
+
+model DeliveryChallanItem {
+  id              String          @id @default(cuid())
+  deliveryChallanId String
+  deliveryChallan  DeliveryChallan @relation(fields: [deliveryChallanId], references: [id], onDelete: Cascade)
+  partId           String?
+  part             Part?           @relation(fields: [partId], references: [id], onDelete: SetNull)
+  partNo           String
+  description      String?
+  quantity         Int             @default(1)
+  uom              String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([deliveryChallanId])
+  @@index([partId])
+}
+
+model SalesReturn {
+  id              String            @id @default(cuid())
+  returnNo        String            @unique
+  invoiceId       String?
+  salesInvoice    SalesInvoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  customerName    String
+  customerEmail   String?
+  customerPhone   String?
+  returnDate      DateTime          @default(now())
+  status          String            @default("draft") // draft, approved, processed, rejected
+  totalAmount     Float             @default(0)
+  refundAmount    Float             @default(0)
+  reason          String?
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  items           SalesReturnItem[]
+
+  @@index([returnNo])
+  @@index([status])
+  @@index([returnDate])
+  @@index([customerName])
+}
+
+model SalesReturnItem {
+  id              String        @id @default(cuid())
+  salesReturnId   String
+  salesReturn     SalesReturn   @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+  partId          String?
+  part            Part?         @relation(fields: [partId], references: [id], onDelete: SetNull)
+  partNo          String
+  description     String?
+  quantity        Int           @default(1)
+  returnReason    String
+  uom             String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([salesReturnId])
   @@index([partId])
 }
 

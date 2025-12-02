@@ -62,25 +62,17 @@ export default function SalesReturn() {
   const fetchReturns = async () => {
     setLoading(true);
     try {
-      // Mock data - replace with actual API call
-      const mockReturns: SalesReturn[] = [
-        {
-          id: '1',
-          returnNo: 'SR-2024-001',
-          customerName: 'ABC Corporation',
-          returnDate: '2024-01-30',
-          status: 'approved',
-          totalAmount: 500,
-          refundAmount: 500,
-          reason: 'Defective product',
-          items: [
-            { partNo: 'P001', description: 'Part 1', quantity: 1, returnReason: 'Defective' },
-          ],
-        },
-      ];
-      setReturns(mockReturns);
-    } catch (error) {
+      const response = await api.get('/sales-returns');
+      const returnsData = response.data.returns || [];
+      const transformedReturns = returnsData.map((r: any) => ({
+        ...r,
+        returnDate: r.returnDate ? new Date(r.returnDate).toISOString().split('T')[0] : '',
+        items: r.items || [],
+      }));
+      setReturns(transformedReturns);
+    } catch (error: any) {
       console.error('Failed to fetch returns:', error);
+      setReturns([]);
     } finally {
       setLoading(false);
     }
@@ -88,17 +80,22 @@ export default function SalesReturn() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.items.length === 0) {
+      alert('Please add at least one item');
+      return;
+    }
     try {
       setLoading(true);
       if (selectedReturn?.id) {
-        console.log('Update return:', formData);
+        await api.put(`/sales-returns/${selectedReturn.id}`, formData);
       } else {
-        console.log('Create return:', formData);
+        await api.post('/sales-returns', formData);
       }
       resetForm();
       fetchReturns();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save return:', error);
+      alert(error.response?.data?.error || 'Failed to save return');
     } finally {
       setLoading(false);
     }
@@ -107,9 +104,14 @@ export default function SalesReturn() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this return?')) return;
     try {
+      setLoading(true);
+      await api.delete(`/sales-returns/${id}`);
       fetchReturns();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete return:', error);
+      alert(error.response?.data?.error || 'Failed to delete return');
+    } finally {
+      setLoading(false);
     }
   };
 

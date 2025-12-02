@@ -51,33 +51,11 @@ export default function SalesInquiry() {
   const fetchInquiries = async () => {
     setLoading(true);
     try {
-      // Mock data for now - replace with actual API call
-      const mockInquiries: SalesInquiry[] = [
-        {
-          id: '1',
-          inquiryNo: 'INQ-2024-001',
-          customerName: 'ABC Corporation',
-          customerEmail: 'contact@abccorp.com',
-          customerPhone: '+1-234-567-8900',
-          inquiryDate: '2024-01-15',
-          status: 'quoted',
-          subject: 'Bulk Parts Order',
-          description: 'Inquiry for 500 units of various parts',
-        },
-        {
-          id: '2',
-          inquiryNo: 'INQ-2024-002',
-          customerName: 'XYZ Industries',
-          customerEmail: 'sales@xyzind.com',
-          inquiryDate: '2024-01-20',
-          status: 'new',
-          subject: 'Custom Kit Request',
-          description: 'Need custom kit configuration',
-        },
-      ];
-      setInquiries(mockInquiries);
-    } catch (error) {
+      const response = await api.get('/sales-inquiries');
+      setInquiries(response.data.inquiries || []);
+    } catch (error: any) {
       console.error('Failed to fetch inquiries:', error);
+      setInquiries([]);
     } finally {
       setLoading(false);
     }
@@ -88,16 +66,15 @@ export default function SalesInquiry() {
     try {
       setLoading(true);
       if (selectedInquiry?.id) {
-        // Update logic
-        console.log('Update inquiry:', formData);
+        await api.put(`/sales-inquiries/${selectedInquiry.id}`, formData);
       } else {
-        // Create logic
-        console.log('Create inquiry:', formData);
+        await api.post('/sales-inquiries', formData);
       }
       resetForm();
       fetchInquiries();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save inquiry:', error);
+      alert(error.response?.data?.error || 'Failed to save inquiry');
     } finally {
       setLoading(false);
     }
@@ -106,10 +83,14 @@ export default function SalesInquiry() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this inquiry?')) return;
     try {
-      // Delete logic
+      setLoading(true);
+      await api.delete(`/sales-inquiries/${id}`);
       fetchInquiries();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete inquiry:', error);
+      alert(error.response?.data?.error || 'Failed to delete inquiry');
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -33,12 +33,12 @@ const Dialog = ({ open: controlledOpen, onOpenChange, children }: DialogProps) =
 
   return (
     <DialogContext.Provider value={{ open, onOpenChange: handleOpenChange }}>
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
         <div
-          className="fixed inset-0 bg-black/50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
           onClick={() => handleOpenChange(false)}
         />
-        <div className="relative z-50">{children}</div>
+        <div className="relative z-50 w-full h-full sm:w-auto sm:h-auto">{children}</div>
       </div>
     </DialogContext.Provider>
   );
@@ -54,12 +54,13 @@ const DialogContent = React.forwardRef<
   return (
     <div
       ref={ref}
-      className={`fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-gray-200 bg-white p-6 shadow-lg duration-200 sm:rounded-lg ${className}`}
+      className={`w-full h-full sm:w-auto sm:h-auto sm:max-w-lg sm:max-h-[90vh] overflow-y-auto fixed sm:relative sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] left-0 top-0 translate-x-0 translate-y-0 z-50 grid gap-4 border-0 sm:border border-gray-200 bg-white p-4 sm:p-6 shadow-lg sm:rounded-lg transition-all duration-200 ${className}`}
+      onClick={(e) => e.stopPropagation()}
       {...props}
     >
       {children}
       <button
-        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+        className="absolute right-3 sm:right-4 top-3 sm:top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-2xl sm:text-xl w-8 h-8 sm:w-6 sm:h-6 flex items-center justify-center"
         onClick={() => context.onOpenChange(false)}
       >
         ×

@@ -84,20 +84,21 @@ export default function DashboardLayout({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       />
-      <div className="flex-1 flex flex-col ml-20">
+      <div className="flex-1 flex flex-col ml-0 sm:ml-16 md:ml-20 pb-16 sm:pb-0">
         {/* Header Bar */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-          <div className="px-6 py-4 flex items-center justify-between">
+          <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
             {/* Left: Logo and Navigation */}
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-3 sm:gap-6 md:gap-8 min-w-0 flex-1">
               {/* Logo */}
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </div>
-                <span className="text-xl font-semibold text-gray-900">InventoryERP</span>
+                <span className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 hidden sm:inline">InventoryERP</span>
+                <span className="text-base font-semibold text-gray-900 sm:hidden">ERP</span>
               </div>
 
               {/* Navigation Links */}
@@ -124,7 +125,7 @@ export default function DashboardLayout({
             </div>
 
             {/* Right: Team, Search, Notifications, User */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-shrink-0">
               {/* Team Members */}
               <div className="hidden lg:flex items-center gap-2 relative">
                 <button
@@ -199,18 +200,19 @@ export default function DashboardLayout({
               </div>
 
               {/* User Profile */}
-              <div className="relative flex items-center gap-3 pl-4 border-l border-gray-200">
+              <div className="relative flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-200">
                 <button
                   onClick={() => {
                     setIsUserMenuOpen(!isUserMenuOpen);
                     setIsSearchOpen(false);
                     setIsNotificationsOpen(false);
                   }}
-                  className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                  className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-medium text-sm cursor-pointer">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-medium text-xs sm:text-sm cursor-pointer">
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
+                  <span className="hidden md:inline text-sm text-gray-700 font-medium">{user?.name || 'User'}</span>
                 </button>
                 <UserMenu isOpen={isUserMenuOpen} onClose={() => setIsUserMenuOpen(false)} />
               </div>

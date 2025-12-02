@@ -100,9 +100,18 @@ router.get('/', async (req: AuthRequest, res) => {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get parts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    const errorMessage = error.message || 'Internal server error';
+    // Provide more detailed error for debugging
+    if (error.message?.includes('DATABASE_URL') || error.message?.includes('datasource')) {
+      return res.status(500).json({ 
+        error: 'Database configuration error',
+        message: errorMessage,
+        details: 'Please check your DATABASE_URL in .env file'
+      });
+    }
+    res.status(500).json({ error: 'Internal server error', message: errorMessage });
   }
 });
 

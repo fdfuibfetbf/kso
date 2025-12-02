@@ -63,24 +63,17 @@ export default function DeliveryChallan() {
   const fetchChallans = async () => {
     setLoading(true);
     try {
-      // Mock data - replace with actual API call
-      const mockChallans: DeliveryChallan[] = [
-        {
-          id: '1',
-          challanNo: 'DC-2024-001',
-          customerName: 'ABC Corporation',
-          deliveryDate: '2024-01-25',
-          status: 'dispatched',
-          vehicleNo: 'ABC-1234',
-          driverName: 'John Doe',
-          items: [
-            { partNo: 'P001', description: 'Part 1', quantity: 10 },
-          ],
-        },
-      ];
-      setChallans(mockChallans);
-    } catch (error) {
+      const response = await api.get('/delivery-challans');
+      const challansData = response.data.challans || [];
+      const transformedChallans = challansData.map((c: any) => ({
+        ...c,
+        deliveryDate: c.deliveryDate ? new Date(c.deliveryDate).toISOString().split('T')[0] : '',
+        items: c.items || [],
+      }));
+      setChallans(transformedChallans);
+    } catch (error: any) {
       console.error('Failed to fetch challans:', error);
+      setChallans([]);
     } finally {
       setLoading(false);
     }
@@ -88,17 +81,22 @@ export default function DeliveryChallan() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.items.length === 0) {
+      alert('Please add at least one item');
+      return;
+    }
     try {
       setLoading(true);
       if (selectedChallan?.id) {
-        console.log('Update challan:', formData);
+        await api.put(`/delivery-challans/${selectedChallan.id}`, formData);
       } else {
-        console.log('Create challan:', formData);
+        await api.post('/delivery-challans', formData);
       }
       resetForm();
       fetchChallans();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save challan:', error);
+      alert(error.response?.data?.error || 'Failed to save challan');
     } finally {
       setLoading(false);
     }
@@ -107,9 +105,14 @@ export default function DeliveryChallan() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this challan?')) return;
     try {
+      setLoading(true);
+      await api.delete(`/delivery-challans/${id}`);
       fetchChallans();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete challan:', error);
+      alert(error.response?.data?.error || 'Failed to delete challan');
+    } finally {
+      setLoading(false);
     }
   };
 

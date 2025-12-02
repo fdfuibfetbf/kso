@@ -830,32 +830,33 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-8">
+    <div className="min-h-screen bg-gray-50/50 p-3 sm:p-4 md:p-6 lg:p-8">
       {/* Header Section */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="mb-4 sm:mb-6 md:mb-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
               {getGreeting()}, {user?.name?.split(' ')[0] || 'User'} 👋
             </h1>
-            <p className="text-gray-500">Here's what's happening with your inventory today.</p>
+            <p className="text-sm sm:text-base text-gray-500">Here's what's happening with your inventory today.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => router.push('/dashboard/purchase-orders?action=create')}
-              className="px-5 py-2.5 bg-primary-500 text-white rounded-xl font-medium hover:bg-primary-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-primary-500 text-white rounded-xl font-medium hover:bg-primary-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2 text-sm sm:text-base"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              New Order
+              <span className="hidden sm:inline">New Order</span>
+              <span className="sm:hidden">New</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Modern Stats Cards - Clean SaaS Style */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {[
           { label: 'Total Parts', value: stats.totalParts, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>, color: 'primary', sparkData: [20, 35, 28, 45, 38, 52, 48] },
           { label: 'Categories', value: stats.totalCategories, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>, color: 'blue', sparkData: [10, 15, 12, 18, 15, 22, 20] },
@@ -873,25 +874,25 @@ export default function DashboardPage() {
           return (
             <div
               key={index}
-              className="bg-white rounded-xl p-6 border border-slate-200/60 hover:border-slate-300 hover:shadow-md transition-all duration-200 group"
+              className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200/60 hover:border-slate-300 hover:shadow-md transition-all duration-200 group"
             >
-              <div className="flex items-start justify-between mb-5">
-                <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center ${colors.icon} group-hover:scale-105 transition-transform`}>
+              <div className="flex items-start justify-between mb-4 sm:mb-5">
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${colors.bg} flex items-center justify-center ${colors.icon} group-hover:scale-105 transition-transform`}>
                   {stat.icon}
                 </div>
-                <span className={`text-xs font-semibold ${colors.text} ${colors.badge} px-2.5 py-1 rounded-md`}>
+                <span className={`text-[10px] sm:text-xs font-semibold ${colors.text} ${colors.badge} px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md`}>
                   +12%
                 </span>
               </div>
-              <div className="mb-4">
-                <h3 className="text-3xl font-bold text-slate-900 mb-1" style={{ 
+              <div className="mb-3 sm:mb-4">
+                <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1" style={{ 
                   fontFeatureSettings: '"tnum"',
                   fontVariantNumeric: 'tabular-nums',
                   letterSpacing: '-0.02em'
                 }}>
                   <AnimatedCounter value={stat.value} />
                 </h3>
-                <p className="text-sm font-medium text-slate-600">{stat.label}</p>
+                <p className="text-xs sm:text-sm font-medium text-slate-600">{stat.label}</p>
               </div>
               <div className="mt-4 -mx-6 -mb-6">
                 <SparklineChart data={stat.sparkData} color={stat.color === 'green' ? 'green' : stat.color === 'blue' ? 'blue' : stat.color === 'purple' ? 'purple' : 'primary'} />
@@ -902,17 +903,17 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mb-6 sm:mb-8">
         {/* Revenue Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-8 border border-gray-100 shadow-soft">
-          <div className="flex items-center justify-between mb-8">
+        <div className="lg:col-span-2 bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 border border-gray-100 shadow-soft">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
             <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">Inventory Overview</h3>
-              <p className="text-sm text-gray-500">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">Inventory Overview</h3>
+              <p className="text-xs sm:text-sm text-gray-500">
                 {timeRange === 'week' ? 'Weekly inventory movement' : timeRange === 'month' ? 'Monthly inventory movement' : 'Yearly inventory movement'}
               </p>
             </div>
-            <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
+            <div className="flex items-center gap-1 sm:gap-2 bg-gray-100 p-0.5 sm:p-1 rounded-lg w-full sm:w-auto">
               <button 
                 onClick={() => {
                   setIsChartTransitioning(true);
@@ -921,7 +922,7 @@ export default function DashboardPage() {
                     setTimeout(() => setIsChartTransitioning(false), 50);
                   }, 200);
                 }}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-300 ${
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all duration-300 ${
                   timeRange === 'week'
                     ? 'bg-white text-primary-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -937,7 +938,7 @@ export default function DashboardPage() {
                     setTimeout(() => setIsChartTransitioning(false), 50);
                   }, 200);
                 }}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-300 ${
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all duration-300 ${
                   timeRange === 'month'
                     ? 'bg-white text-primary-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -953,7 +954,7 @@ export default function DashboardPage() {
                     setTimeout(() => setIsChartTransitioning(false), 50);
                   }, 200);
                 }}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-300 ${
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all duration-300 ${
                   timeRange === 'year'
                     ? 'bg-white text-primary-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
