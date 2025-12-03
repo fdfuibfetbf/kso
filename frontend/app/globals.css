@@ -551,5 +551,30 @@ body {
       scrollbar-width: thin;
     }
   }
+
+  /* Fixed tabs bar to prevent layout shifts */
+  .parts-tabs-bar {
+    position: sticky;
+    top: var(--header-height, 64px);
+    z-index: 30;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    isolation: isolate;
+    contain: layout style paint;
+  }
+
+  @media (min-width: 768px) {
+    .parts-tabs-bar {
+      height: 56px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .parts-tabs-bar {
+      height: 48px;
+    }
+  }
 }
 

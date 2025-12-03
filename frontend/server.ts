@@ -52,6 +52,8 @@ import salesQuotationsRoutes from './server/src/routes/sales-quotations';
 import deliveryChallansRoutes from './server/src/routes/delivery-challans';
 import salesReturnsRoutes from './server/src/routes/sales-returns';
 import accountsRoutes from './server/src/routes/accounts';
+import vehiclesRoutes from './server/src/routes/vehicles';
+import vehicleModelsRoutes from './server/src/routes/vehicle-models';
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -103,12 +105,14 @@ app.prepare().then(async () => {
   server.use('/api/kits', kitsRoutes);
   server.use('/api/purchase-orders', purchaseOrdersRoutes);
   server.use('/api/suppliers', suppliersRoutes);
-      server.use('/api/sales-invoices', salesInvoicesRoutes);
+  server.use('/api/sales-invoices', salesInvoicesRoutes);
       server.use('/api/sales-inquiries', salesInquiriesRoutes);
       server.use('/api/sales-quotations', salesQuotationsRoutes);
       server.use('/api/delivery-challans', deliveryChallansRoutes);
       server.use('/api/sales-returns', salesReturnsRoutes);
   server.use('/api/accounts', accountsRoutes);
+  server.use('/api/vehicles', vehiclesRoutes);
+  server.use('/api/vehicle-models', vehicleModelsRoutes);
   console.log('✓ All API routes registered');
 
   // Health check

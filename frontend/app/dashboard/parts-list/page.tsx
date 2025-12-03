@@ -242,24 +242,32 @@ export default function PartsListPage() {
 
         {/* Tabs */}
         <div className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="flex">
+          <div className="flex items-center justify-start gap-2 py-2" style={{ paddingLeft: '113px' }}>
             <button
               onClick={() => setActiveTab('parts')}
-              className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 ${
-                activeTab === 'parts'
-                  ? 'text-primary-600 border-b-2 border-primary-500 bg-primary-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
+              className={`
+                flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-full
+                transition-colors whitespace-nowrap min-h-[32px] flex-shrink-0
+                ${
+                  activeTab === 'parts'
+                    ? 'bg-primary-50 text-primary-600 border border-primary-200'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
+                }
+              `}
             >
               Parts List
             </button>
             <button
               onClick={() => setActiveTab('kits')}
-              className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 ${
-                activeTab === 'kits'
-                  ? 'text-primary-600 border-b-2 border-primary-500 bg-primary-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
+              className={`
+                flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-full
+                transition-colors whitespace-nowrap min-h-[32px] flex-shrink-0
+                ${
+                  activeTab === 'kits'
+                    ? 'bg-primary-50 text-primary-600 border border-primary-200'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
+                }
+              `}
             >
               Kits List
             </button>

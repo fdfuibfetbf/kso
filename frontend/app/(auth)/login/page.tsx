@@ -32,10 +32,18 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      console.log('Attempting login with:', { email, password: '***' });
+      const result = await login(email, password);
+      console.log('Login successful:', result);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      console.error('Login error:', err);
+      console.error('Error response:', err.response);
+      const errorMessage = err.response?.data?.error ||
+                          err.response?.data?.message ||
+                          err.message ||
+                          'Login failed. Please try again.';
+      setError(typeof errorMessage === 'string' ? errorMessage : 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

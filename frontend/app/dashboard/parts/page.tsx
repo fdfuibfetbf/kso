@@ -221,7 +221,7 @@ export default function PartsPage() {
         <ModelsPanel 
           partId={selectedPart?.id} 
           partName={selectedPart?.partNo || selectedPart?.description || ''}
-          stockQuantity={selectedPart?.stock?.quantity ?? 0}
+          stockQuantity={(selectedPart as any)?.stock?.quantity ?? 0}
         />
       </div>
 

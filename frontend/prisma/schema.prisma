@@ -452,3 +452,67 @@ model SalesReturnItem {
   @@index([partId])
 }
 
+model Vehicle {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model VehicleModel {
+  id        String   @id @default(cuid())
+  machine   String
+  make      String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([machine])
+  @@index([make])
+  @@index([name])
+}
+
+model Make {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Application {
+  id        String   @id @default(cuid())
+  name      String
+  status    String   @default("A") // "A" for active, "I" for inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([status])
+}
+
+model Dimension {
+  id          String   @id @default(cuid())
+  name        String   @unique // Dimension code like "W", "H", "L"
+  description String?  // Description like "Width", "Height", "Length"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  status    String   @default("A") // "A" for active, "I" for inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([status])
+}
+
+

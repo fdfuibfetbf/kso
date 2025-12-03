@@ -11,7 +11,10 @@ const loginSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Login request received');
+    console.log('Request headers:', Object.fromEntries(request.headers));
     const body = await request.json();
+    console.log('Request body:', body);
     const { email, password } = loginSchema.parse(body);
 
     // Test database connection

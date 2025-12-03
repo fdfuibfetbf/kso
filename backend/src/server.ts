@@ -9,6 +9,8 @@ import kitsRoutes from './routes/kits';
 import purchaseOrdersRoutes from './routes/purchase-orders';
 import suppliersRoutes from './routes/suppliers';
 import salesInvoicesRoutes from './routes/sales-invoices';
+import vehiclesRoutes from './routes/vehicles';
+import makesRoutes from './routes/makes';
 
 dotenv.config();
 
@@ -35,6 +37,8 @@ app.use('/api/kits', kitsRoutes);
 app.use('/api/purchase-orders', purchaseOrdersRoutes);
 app.use('/api/suppliers', suppliersRoutes);
 app.use('/api/sales-invoices', salesInvoicesRoutes);
+app.use('/api/vehicles', vehiclesRoutes);
+app.use('/api/makes', makesRoutes);
 
 // Also handle routes without /api prefix (for Vercel routing)
 app.use('/auth', authRoutes);
@@ -45,6 +49,8 @@ app.use('/kits', kitsRoutes);
 app.use('/purchase-orders', purchaseOrdersRoutes);
 app.use('/suppliers', suppliersRoutes);
 app.use('/sales-invoices', salesInvoicesRoutes);
+app.use('/vehicles', vehiclesRoutes);
+app.use('/makes', makesRoutes);
 
 // Health check
 app.get('/api/health', async (req, res) => {
