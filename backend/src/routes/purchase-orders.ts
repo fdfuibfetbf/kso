@@ -6,7 +6,7 @@ import { verifyToken, AuthRequest } from '../middleware/auth';
 const router = express.Router();
 
 const purchaseOrderSchema = z.object({
-  poNo: z.string().min(1, 'PO number is required'),
+  poNo: z.string().optional(), // Optional - will be auto-generated if not provided
   type: z.enum(['purchase', 'direct']),
   supplierId: z.string().optional(),
   supplierName: z.string().min(1, 'Supplier name is required'),
@@ -16,6 +16,7 @@ const purchaseOrderSchema = z.object({
   orderDate: z.string().optional(),
   expectedDate: z.string().optional(),
   status: z.enum(['draft', 'pending', 'approved', 'received', 'cancelled']).optional(),
+  paymentMethod: z.enum(['cash', 'bank_transfer', 'cheque', 'credit_card', 'other']).optional(),
   subTotal: z.number().optional(),
   tax: z.number().optional(),
   discount: z.number().optional(),
@@ -120,14 +121,64 @@ router.get('/:id', async (req: AuthRequest, res) => {
   }
 });
 
+// Helper function to generate PO number
+async function generatePONumber(type: 'purchase' | 'direct'): Promise<string> {
+  const prefix = type === 'direct' ? 'DPO' : 'PO';
+  const year = new Date().getFullYear();
+  
+  // Get the last PO number for this type and year
+  const lastPO = await prisma.purchaseOrder.findFirst({
+    where: {
+      poNo: {
+        startsWith: `${prefix}-${year}-`,
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  let nextNumber = 1;
+  if (lastPO) {
+    // Extract number from last PO (e.g., "PO-2024-001" -> 1)
+    const match = lastPO.poNo.match(/-(\d+)$/);
+    if (match) {
+      nextNumber = parseInt(match[1], 10) + 1;
+    }
+  }
+
+  return `${prefix}-${year}-${String(nextNumber).padStart(3, '0')}`;
+}
+
+// Get next PO number (for frontend preview)
+router.get('/next-po-number/:type', async (req: AuthRequest, res) => {
+  try {
+    const type = req.params.type as 'purchase' | 'direct';
+    if (!['purchase', 'direct'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid type. Must be "purchase" or "direct"' });
+    }
+    const nextPONumber = await generatePONumber(type);
+    res.json({ nextPONumber });
+  } catch (error: any) {
+    console.error('Get next PO number error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Create purchase order
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const data = purchaseOrderSchema.parse(req.body);
 
+    // Auto-generate PO number if not provided
+    let poNo = data.poNo;
+    if (!poNo || poNo.trim() === '') {
+      poNo = await generatePONumber(data.type);
+    }
+
     // Check if PO number already exists
     const existing = await prisma.purchaseOrder.findUnique({
-      where: { poNo: data.poNo },
+      where: { poNo },
     });
 
     if (existing) {
@@ -157,7 +208,7 @@ router.post('/', async (req: AuthRequest, res) => {
 
     const purchaseOrder = await prisma.purchaseOrder.create({
       data: {
-        poNo: data.poNo,
+        poNo: poNo,
         type: data.type,
         supplierId: data.type === 'purchase' ? (data.supplierId || null) : null,
         supplierName: data.supplierName,
@@ -166,6 +217,7 @@ router.post('/', async (req: AuthRequest, res) => {
         supplierAddress: data.supplierAddress || null,
         orderDate,
         expectedDate,
+        paymentMethod: data.paymentMethod || null,
         status: data.status || 'draft',
         subTotal,
         tax,
@@ -218,40 +270,33 @@ router.put('/:id', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Purchase order not found' });
     }
 
-    // Check for duplicate PO number
-    if (data.poNo && data.poNo !== existing.poNo) {
-      const duplicate = await prisma.purchaseOrder.findUnique({
-        where: { poNo: data.poNo },
-      });
-
-      if (duplicate) {
-        return res.status(400).json({ error: 'PO number already exists' });
-      }
-    }
+    // PO number cannot be changed during update - it's auto-generated and read-only
+    // Remove poNo from update data to prevent changes
+    const { poNo: _, ...updateData } = data;
 
     // Calculate totals if items are provided
     let subTotal = existing.subTotal;
     let totalAmount = existing.totalAmount;
 
-    if (data.items) {
-      subTotal = data.items.reduce((sum, item) => sum + item.totalPrice, 0);
-      const discount = data.discount !== undefined ? data.discount : existing.discount;
-      const tax = data.tax !== undefined ? data.tax : existing.tax;
+    if (updateData.items) {
+      subTotal = updateData.items.reduce((sum, item) => sum + item.totalPrice, 0);
+      const discount = updateData.discount !== undefined ? updateData.discount : existing.discount;
+      const tax = updateData.tax !== undefined ? updateData.tax : existing.tax;
       totalAmount = subTotal - discount + tax;
-    } else if (data.discount !== undefined || data.tax !== undefined) {
-      const discount = data.discount !== undefined ? data.discount : existing.discount;
-      const tax = data.tax !== undefined ? data.tax : existing.tax;
+    } else if (updateData.discount !== undefined || updateData.tax !== undefined) {
+      const discount = updateData.discount !== undefined ? updateData.discount : existing.discount;
+      const tax = updateData.tax !== undefined ? updateData.tax : existing.tax;
       totalAmount = existing.subTotal - discount + tax;
     }
 
     // Parse dates
-    const orderDate = data.orderDate ? new Date(data.orderDate) : existing.orderDate;
-    const expectedDate = data.expectedDate ? new Date(data.expectedDate) : existing.expectedDate;
+    const orderDate = updateData.orderDate ? new Date(updateData.orderDate) : existing.orderDate;
+    const expectedDate = updateData.expectedDate ? new Date(updateData.expectedDate) : existing.expectedDate;
 
     // Verify supplier exists if supplierId is provided
-    if (data.supplierId) {
+    if (updateData.supplierId) {
       const supplier = await prisma.supplier.findUnique({
-        where: { id: data.supplierId },
+        where: { id: updateData.supplierId },
       });
 
       if (!supplier) {
@@ -264,17 +309,17 @@ router.put('/:id', async (req: AuthRequest, res) => {
     let approvedAt = existing.approvedAt;
     let receivedAt = existing.receivedAt;
 
-    if (data.status === 'approved' && existing.status !== 'approved') {
+    if (updateData.status === 'approved' && existing.status !== 'approved') {
       approvedBy = req.user?.id || null;
       approvedAt = new Date();
     }
 
-    if (data.status === 'received' && existing.status !== 'received') {
+    if (updateData.status === 'received' && existing.status !== 'received') {
       receivedAt = new Date();
     }
 
     // Delete existing items if new items are provided
-    if (data.items) {
+    if (updateData.items) {
       await prisma.purchaseOrderItem.deleteMany({
         where: { purchaseOrderId: req.params.id },
       });
@@ -283,17 +328,17 @@ router.put('/:id', async (req: AuthRequest, res) => {
     const purchaseOrder = await prisma.purchaseOrder.update({
       where: { id: req.params.id },
       data: {
-        ...data,
-        supplierId: data.type === 'purchase' ? (data.supplierId || null) : null,
-        subTotal: data.items ? subTotal : undefined,
-        totalAmount: data.items || data.discount !== undefined || data.tax !== undefined ? totalAmount : undefined,
+        ...updateData,
+        supplierId: updateData.type === 'purchase' ? (updateData.supplierId || null) : null,
+        subTotal: updateData.items ? subTotal : undefined,
+        totalAmount: updateData.items || updateData.discount !== undefined || updateData.tax !== undefined ? totalAmount : undefined,
         orderDate,
         expectedDate,
         approvedBy,
         approvedAt,
         receivedAt,
-        items: data.items ? {
-          create: data.items.map(item => ({
+        items: updateData.items ? {
+          create: updateData.items.map(item => ({
             partId: item.partId || null,
             partNo: item.partNo,
             description: item.description || null,

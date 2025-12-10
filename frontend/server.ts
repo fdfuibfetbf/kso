@@ -3,12 +3,20 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import { networkInterfaces } from 'os';
 
 // Load environment variables from .env.local first, then .env
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 // Ensure DATABASE_URL is set correctly for SQLite
+if (!process.env.DATABASE_URL) {
+  // If DATABASE_URL is not set, use the shared backend database
+  const backendDbPath = path.resolve(process.cwd(), '..', 'backend', 'prisma', 'dev.db');
+  process.env.DATABASE_URL = `file:${backendDbPath.replace(/\\/g, '/')}`;
+  console.log(`[Server] DATABASE_URL not set, using: ${process.env.DATABASE_URL.replace(/file:.*\//, 'file:.../')}`);
+}
+
 if (process.env.DATABASE_URL) {
   // Remove quotes and normalize (handle line breaks)
   let dbUrl = process.env.DATABASE_URL.replace(/^["']|["']$/g, '').replace(/\r?\n/g, '').trim();
@@ -21,8 +29,9 @@ if (process.env.DATABASE_URL) {
       const absolutePath = path.resolve(process.cwd(), dbUrl).replace(/\\/g, '/');
       dbUrl = `file:${absolutePath}`;
     }
-  } else if (dbUrl.startsWith('file:./')) {
-    const dbPath = dbUrl.replace('file:./', '');
+  } else if (dbUrl.startsWith('file:./') || dbUrl.startsWith('file:../')) {
+    // Handle relative paths in file: URLs
+    const dbPath = dbUrl.replace(/^file:/, '');
     const absolutePath = path.resolve(process.cwd(), dbPath).replace(/\\/g, '/');
     dbUrl = `file:${absolutePath}`;
   }
@@ -35,8 +44,25 @@ if (process.env.DATABASE_URL) {
 }
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
+const hostname = '0.0.0.0'; // Listen on all network interfaces
 const port = parseInt(process.env.PORT || '3000', 10);
+
+// Function to get local IP address
+function getLocalIP(): string {
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    const netInterfaces = nets[name];
+    if (netInterfaces) {
+      for (const net of netInterfaces) {
+        // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+        if (net.family === 'IPv4' && !net.internal) {
+          return net.address;
+        }
+      }
+    }
+  }
+  return 'localhost';
+}
 
 // Import Express routes
 import authRoutes from './server/src/routes/auth';
@@ -54,6 +80,7 @@ import salesReturnsRoutes from './server/src/routes/sales-returns';
 import accountsRoutes from './server/src/routes/accounts';
 import vehiclesRoutes from './server/src/routes/vehicles';
 import vehicleModelsRoutes from './server/src/routes/vehicle-models';
+import racksRoutes from './server/src/routes/racks';
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -113,6 +140,7 @@ app.prepare().then(async () => {
   server.use('/api/accounts', accountsRoutes);
   server.use('/api/vehicles', vehiclesRoutes);
   server.use('/api/vehicle-models', vehicleModelsRoutes);
+  server.use('/api/racks', racksRoutes);
   console.log('✓ All API routes registered');
 
   // Health check
@@ -142,8 +170,14 @@ app.prepare().then(async () => {
       }
       throw err;
     }
-    console.log(`> Ready on http://${hostname}:${port}`);
-    console.log(`> API available at http://${hostname}:${port}/api`);
+    const localIP = getLocalIP();
+    console.log(`\n🚀 Server is running on:`);
+    console.log(`   Local:    http://localhost:${port}`);
+    console.log(`   Network:  http://${localIP}:${port}`);
+    console.log(`\n📡 API available at:`);
+    console.log(`   Local:    http://localhost:${port}/api`);
+    console.log(`   Network:  http://${localIP}:${port}/api`);
+    console.log(`\n🌍 Access from other devices using: http://${localIP}:${port}`);
   });
 });
 

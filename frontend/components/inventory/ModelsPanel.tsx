@@ -79,8 +79,8 @@ export default function ModelsPanel({ partId, partName, stockQuantity: initialSt
           <Table className="w-full">
             <TableHeader>
               <TableRow className="bg-gray-50 border-b-2 border-gray-200">
-                <TableHead className="font-semibold text-gray-700 py-2 px-3 text-left text-sm">Model No</TableHead>
-                <TableHead className="font-semibold text-gray-700 py-2 px-3 text-left text-sm">Quantity Available</TableHead>
+                <TableHead className="font-semibold text-gray-700 py-2 px-3 text-left text-sm">Models</TableHead>
+                <TableHead className="font-semibold text-gray-700 py-2 px-3 text-left text-sm">Quantity Used</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -4,9 +4,24 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
   },
-  webpack: (config, { isServer }) => {
+  // Prevent chunk loading errors
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
+  webpack: (config, { isServer, dev }) => {
     // Fix case sensitivity issues on Windows
     config.resolve.symlinks = false;
+    
+    // Improve chunk loading reliability
+    if (dev) {
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: false,
+        removeEmptyChunks: false,
+        splitChunks: false,
+      };
+    }
     
     // Disable problematic cache strategies on Windows
     if (config.cache) {

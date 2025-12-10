@@ -2,57 +2,40 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { verifyToken } from '@/lib/middleware/auth';
 
+// Disable caching for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+// GET - Get all applications from Application table
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
     const user = verifyToken(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search');
     const status = searchParams.get('status');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const search = searchParams.get('search');
 
     const where: any = {};
-    if (status) {
+    
+    if (status && status !== 'all') {
       where.status = status;
     }
-    // Note: For SQLite, we'll filter after fetching if search is needed
-    // This is less efficient but works with SQLite's limitations
+    
+    if (search) {
+      where.name = { contains: search };
+    }
 
-    const skip = (page - 1) * limit;
-
-    // For SQLite, we need to handle search differently
-    let allApplications = await prisma.application.findMany({
+    const applications = await prisma.application.findMany({
       where,
       orderBy: {
         name: 'asc',
       },
     });
 
-    // Apply search filter if provided (case-insensitive)
-    if (search) {
-      const searchLower = search.toLowerCase();
-      allApplications = allApplications.filter((app) =>
-        app.name.toLowerCase().includes(searchLower)
-      );
-    }
-
-    const total = allApplications.length;
-    const applications = allApplications.slice(skip, skip + limit);
-
-    return NextResponse.json({
-      applications,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    return NextResponse.json({ applications });
   } catch (error: any) {
     console.error('Applications fetch error:', error);
     return NextResponse.json(
@@ -62,30 +45,33 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// POST - Add a new application
 export async function POST(request: NextRequest) {
+  let body: any;
+  try {
+    // Read body first
+    body = await request.json();
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
   try {
     const user = verifyToken(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const { name } = body;
 
-    const body = await request.json();
-    const { name, status } = body;
-
-    if (!name || name.trim() === '') {
-      return NextResponse.json(
-        { error: 'Application name is required' },
-        { status: 400 }
-      );
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: 'Application name is required' }, { status: 400 });
     }
 
-    // Check if application with same name already exists (case-insensitive check)
-    const allApps = await prisma.application.findMany({
-      select: { name: true },
+    const trimmedName = name.trim();
+
+    // Check if application already exists
+    const existing = await prisma.application.findUnique({
+      where: { name: trimmedName },
     });
-    const existing = allApps.find(
-      (app) => app.name.toLowerCase() === name.trim().toLowerCase()
-    );
 
     if (existing) {
       return NextResponse.json(
@@ -94,10 +80,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create the application record
     const application = await prisma.application.create({
       data: {
-        name: name.trim(),
-        status: status || 'A',
+        name: trimmedName,
+        status: 'A',
       },
     });
 
@@ -110,4 +97,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

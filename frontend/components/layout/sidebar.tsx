@@ -29,26 +29,12 @@ export default function Sidebar({ isCollapsed, isHovered = false, onToggle, onMo
       return (
         pathname === '/dashboard/parts' || 
         pathname.startsWith('/dashboard/parts/') ||
+        pathname === '/dashboard/parts-list' ||
+        pathname.startsWith('/dashboard/parts-list/') ||
         pathname === '/dashboard/categories' ||
         pathname.startsWith('/dashboard/categories/') ||
         pathname === '/dashboard/subcategories' ||
-        pathname.startsWith('/dashboard/subcategories/') ||
-        pathname === '/dashboard/parts-list' ||
-        pathname.startsWith('/dashboard/parts-list/') ||
-        pathname === '/dashboard/parts-entry' ||
-        pathname.startsWith('/dashboard/parts-entry/') ||
-        pathname === '/dashboard/models' ||
-        pathname.startsWith('/dashboard/models/') ||
-        pathname === '/dashboard/vehicles' ||
-        pathname.startsWith('/dashboard/vehicles/') ||
-        pathname === '/dashboard/make' ||
-        pathname.startsWith('/dashboard/make/') ||
-        pathname === '/dashboard/applications' ||
-        pathname.startsWith('/dashboard/applications/') ||
-        pathname === '/dashboard/dimensions' ||
-        pathname.startsWith('/dashboard/dimensions/') ||
-        pathname === '/dashboard/companies' ||
-        pathname.startsWith('/dashboard/companies/')
+        pathname.startsWith('/dashboard/subcategories/')
       );
     }
     
@@ -60,6 +46,15 @@ export default function Sidebar({ isCollapsed, isHovered = false, onToggle, onMo
 
   // Icon menu items for ERP system
   const menuItems: MenuItem[] = [
+    {
+      label: 'Dashboard',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      ),
+      path: '/dashboard',
+    },
     {
       label: 'Part Management',
       icon: (
@@ -76,7 +71,7 @@ export default function Sidebar({ isCollapsed, isHovered = false, onToggle, onMo
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
         </svg>
       ),
-      path: '/dashboard/kits',
+      path: '/dashboard/inventory',
     },
     {
       label: 'Sale',

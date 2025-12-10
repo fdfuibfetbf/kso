@@ -7,65 +7,38 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 // Function to normalize and fix DATABASE_URL
+// ALWAYS use the backend database in development
 function getDatabaseUrl(): string {
-  let databaseUrl = process.env.DATABASE_URL;
-
-  // In Vercel/production, DATABASE_URL should be set as environment variable
-  // For SQLite, we need a cloud database or file storage solution
-  if (!databaseUrl) {
-    // In production/Vercel, throw error if DATABASE_URL is not set
-    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  // In production/Vercel, DATABASE_URL must be set as environment variable
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
       throw new Error('DATABASE_URL environment variable is required in production. Please set it in Vercel environment variables.');
     }
-    
-    // In development, try to construct default path
-    const defaultPath = path.resolve(process.cwd(), 'prisma', 'dev.db');
-    if (existsSync(defaultPath)) {
-      databaseUrl = `file:${defaultPath.replace(/\\/g, '/')}`;
-    } else {
-      throw new Error('DATABASE_URL is not set and default database file does not exist');
-    }
-  } else {
-    // Remove quotes if present
-    databaseUrl = databaseUrl.replace(/^["']|["']$/g, '').trim();
-    
-    // In Vercel/production, if it's a file: URL, it won't work
-    if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && databaseUrl.startsWith('file:')) {
+    if (databaseUrl.startsWith('file:')) {
       console.error('[Prisma] ERROR: SQLite file databases are not supported on Vercel serverless functions.');
       console.error('[Prisma] Please use a cloud database (PostgreSQL, MySQL, or Turso) for production.');
       throw new Error('SQLite file databases are not supported in production. Please configure a cloud database.');
     }
-    
-    // Ensure it starts with file: protocol (only for local development)
-    if (!databaseUrl.startsWith('file:') && !databaseUrl.startsWith('postgresql://') && !databaseUrl.startsWith('mysql://') && !databaseUrl.startsWith('postgres://')) {
-      // If it's a relative path, convert to absolute (development only)
-      if (databaseUrl.startsWith('./')) {
-        const dbPath = databaseUrl.replace('./', '');
-        const absolutePath = path.resolve(process.cwd(), dbPath).replace(/\\/g, '/');
-        databaseUrl = `file:${absolutePath}`;
-      } else {
-        // Assume it's a path and add file: prefix (development only)
-        const absolutePath = path.resolve(process.cwd(), databaseUrl).replace(/\\/g, '/');
-        databaseUrl = `file:${absolutePath}`;
-      }
-    } else if (databaseUrl.startsWith('file:./')) {
-      // Convert relative file: path to absolute (development only)
-      const dbPath = databaseUrl.replace('file:./', '');
-      const absolutePath = path.resolve(process.cwd(), dbPath).replace(/\\/g, '/');
-      databaseUrl = `file:${absolutePath}`;
-    }
+    return databaseUrl.replace(/^["']|["']$/g, '').trim();
   }
   
-  // Verify the database file exists (only for file: URLs in development)
-  if (databaseUrl.startsWith('file:') && !process.env.VERCEL && process.env.NODE_ENV !== 'production') {
-    const dbPath = databaseUrl.replace(/^file:/, '');
-    if (!existsSync(dbPath)) {
-      console.warn(`[Prisma] Warning: Database file does not exist at: ${dbPath}`);
-    }
+  // In development, ALWAYS use the backend database (single source of truth)
+  const backendDbPath = path.resolve(process.cwd(), '..', 'backend', 'prisma', 'dev.db');
+  
+  if (!existsSync(backendDbPath)) {
+    throw new Error(`Backend database not found at: ${backendDbPath}. Please ensure the backend database exists.`);
   }
   
-  // Update environment variable
+  const databaseUrl = `file:${backendDbPath.replace(/\\/g, '/')}`;
+  
+  // Update environment variable to ensure consistency
   process.env.DATABASE_URL = databaseUrl;
+  
+  // Log in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Prisma] Using shared backend database:', backendDbPath.replace(/.*[\\\/]/, '.../'));
+  }
   
   return databaseUrl;
 }
@@ -79,10 +52,14 @@ if (process.env.NODE_ENV === 'development') {
   console.log('[Prisma] DATABASE_URL:', maskedUrl);
 }
 
-// Create Prisma Client with the normalized URL
-// In serverless environments, we need to handle connection more carefully
+// Create Prisma Client - it will use DATABASE_URL from environment
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  datasources: {
+    db: {
+      url: databaseUrl,
+    },
+  },
 });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

@@ -25,38 +25,90 @@ const supplierSchema = z.object({
 // All routes require authentication
 router.use(verifyToken);
 
-// Get all suppliers
+// Get all suppliers with pagination and filters
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const search = req.query.search as string;
+    const searchField = req.query.searchField as string; // Field to search in
     const status = req.query.status as string;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (search) {
-      where.OR = [
-        { code: { contains: search } },
-        { name: { contains: search } },
-        { email: { contains: search } },
-        { phone: { contains: search } },
-      ];
-    }
-    if (status) {
+    
+    // Status filter
+    if (status && status !== 'all') {
       where.status = status;
     }
 
-    const suppliers = await prisma.supplier.findMany({
-      where,
-      include: {
-        _count: {
-          select: { purchaseOrders: true },
+    // Search functionality
+    if (search) {
+      if (searchField && searchField !== 'all') {
+        // Search in specific field
+        switch (searchField) {
+          case 'name':
+            where.name = { contains: search };
+            break;
+          case 'code':
+            where.code = { contains: search };
+            break;
+          case 'email':
+            where.email = { contains: search };
+            break;
+          case 'phone':
+            where.phone = { contains: search };
+            break;
+          case 'address':
+            where.address = { contains: search };
+            break;
+          case 'contactPerson':
+            where.contactPerson = { contains: search };
+            break;
+          default:
+            where.name = { contains: search };
+        }
+      } else {
+        // Search in all fields
+        where.OR = [
+          { code: { contains: search } },
+          { name: { contains: search } },
+          { email: { contains: search } },
+          { phone: { contains: search } },
+          { address: { contains: search } },
+          { contactPerson: { contains: search } },
+          { city: { contains: search } },
+          { state: { contains: search } },
+        ];
+      }
+    }
+
+    const [suppliers, total] = await Promise.all([
+      prisma.supplier.findMany({
+        where,
+        include: {
+          _count: {
+            select: { purchaseOrders: true },
+          },
         },
-      },
-      orderBy: {
-        name: 'asc',
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.supplier.count({ where }),
+    ]);
+
+    res.json({
+      suppliers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     });
-
-    res.json({ suppliers });
   } catch (error: any) {
     console.error('Get suppliers error:', error);
     res.status(500).json({

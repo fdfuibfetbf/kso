@@ -7,8 +7,8 @@ generator client {
 
 datasource db {
   // Local development uses SQLite file database.
-  // If you later want Postgres again, change provider to "postgresql"
-  // and set DATABASE_URL to a postgres:// URL.
+  // IMPORTANT: DATABASE_URL must point to ../backend/prisma/dev.db for shared database
+  // The frontend and backend use the SAME database file
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
@@ -57,6 +57,7 @@ model Part {
   purchaseOrderItems PurchaseOrderItem[]
   salesInvoiceItems SalesInvoiceItem[]
   salesQuotationItems SalesQuotationItem[]
+  adjustmentItems InventoryAdjustmentItem[]
   deliveryChallanItems DeliveryChallanItem[]
   salesReturnItems SalesReturnItem[]
 }
@@ -80,6 +81,9 @@ model Stock {
   part     Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
   quantity Int      @default(0)
   location String?
+  store    String?
+  racks    String?
+  shelf    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -99,6 +103,7 @@ model Category {
   @@index([type])
   @@index([parentId])
 }
+
 
 model Kit {
   id          String     @id @default(cuid())
@@ -166,6 +171,7 @@ model PurchaseOrder {
   orderDate       DateTime            @default(now())
   expectedDate    DateTime?
   status          String              @default("draft") // draft, pending, approved, received, cancelled
+  paymentMethod   String?             // cash, bank_transfer, cheque, credit_card, other
   subTotal        Float               @default(0)
   tax             Float               @default(0)
   discount        Float               @default(0)
@@ -485,7 +491,7 @@ model Make {
 
 model Application {
   id        String   @id @default(cuid())
-  name      String
+  name      String   @unique
   status    String   @default("A") // "A" for active, "I" for inactive
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -513,6 +519,94 @@ model Company {
 
   @@index([name])
   @@index([status])
+}
+
+model InventoryAdjustment {
+  id          String                      @id @default(cuid())
+  adjustmentNo String?                    // Optional adjustment number
+  total       Float                       @default(0)
+  date        DateTime                    @default(now())
+  notes       String?
+  createdBy   String?
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+  items       InventoryAdjustmentItem[]
+
+  @@index([date])
+  @@index([adjustmentNo])
+}
+
+model InventoryAdjustmentItem {
+  id                    String              @id @default(cuid())
+  adjustmentId           String
+  adjustment             InventoryAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  partId                 String?
+  part                   Part?               @relation(fields: [partId], references: [id], onDelete: SetNull)
+  partNo                 String
+  description            String?
+  previousQuantity       Int                 @default(0)
+  adjustedQuantity       Int                 // Can be positive (increase) or negative (decrease)
+  newQuantity            Int                 // Calculated: previousQuantity + adjustedQuantity
+  reason                 String?             // Reason for adjustment
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+
+  @@index([adjustmentId])
+  @@index([partId])
+}
+
+model StoreType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  stores    Store[]
+
+  @@index([name])
+}
+
+model Store {
+  id           String      @id @default(cuid())
+  name         String
+  storeTypeId  String
+  description  String?
+  status       String      @default("A")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  storeType    StoreType   @relation(fields: [storeTypeId], references: [id], onDelete: Cascade)
+  racks        Rack[]
+
+  @@index([name])
+  @@index([storeTypeId])
+}
+
+model Rack {
+  id          String   @id @default(cuid())
+  rackNumber  String
+  storeId     String
+  description String?
+  status      String   @default("A")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  shelves     Shelf[]
+
+  @@unique([rackNumber, storeId])
+  @@index([storeId])
+}
+
+model Shelf {
+  id          String   @id @default(cuid())
+  shelfNumber String
+  rackId      String
+  description String?
+  status      String   @default("A")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  rack        Rack     @relation(fields: [rackId], references: [id], onDelete: Cascade)
+
+  @@unique([shelfNumber, rackId])
+  @@index([rackId])
 }
 
 

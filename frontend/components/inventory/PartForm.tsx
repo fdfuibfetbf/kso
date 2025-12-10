@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import AutocompleteInput from '@/components/ui/autocomplete-input';
 import api from '@/lib/api';
 
 export interface Part {
@@ -79,6 +80,13 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Options for autocomplete fields
+  const [brandOptions, setBrandOptions] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [subCategoryOptions, setSubCategoryOptions] = useState<string[]>([]);
+  const [applicationOptions, setApplicationOptions] = useState<string[]>([]);
+  const [selectedMainCategoryId, setSelectedMainCategoryId] = useState<string | null>(null);
 
   // Load draft from localStorage when creating a new part
   useEffect(() => {
@@ -187,6 +195,129 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
   }, [formData, part]);
+
+  // Load options for autocomplete fields
+  useEffect(() => {
+    loadOptions();
+  }, []);
+
+  // Load subcategories when main category changes
+  useEffect(() => {
+    if (selectedMainCategoryId) {
+      loadSubCategories(selectedMainCategoryId);
+    } else {
+      setSubCategoryOptions([]);
+    }
+  }, [selectedMainCategoryId]);
+
+  const loadOptions = async () => {
+    try {
+      // Load brands
+      const brandsRes = await api.get('/brands');
+      setBrandOptions(brandsRes.data.brands || []);
+
+      // Load main categories
+      const categoriesRes = await api.get('/categories?type=main&status=A');
+      const mainCategories = (categoriesRes.data.categories || [])
+        .map((cat: any) => cat.name)
+        .filter((name: string) => name);
+      setCategoryOptions(mainCategories);
+
+      // Load applications
+      const applicationsRes = await api.get('/applications');
+      setApplicationOptions(applicationsRes.data.applications || []);
+    } catch (error) {
+      console.error('Failed to load options:', error);
+    }
+  };
+
+  const loadSubCategories = async (parentId: string) => {
+    try {
+      const response = await api.get(`/categories?type=sub&parentId=${parentId}&status=A`);
+      const subCategories = (response.data.categories || [])
+        .map((cat: any) => cat.name)
+        .filter((name: string) => name);
+      setSubCategoryOptions(subCategories);
+    } catch (error) {
+      console.error('Failed to load subcategories:', error);
+      setSubCategoryOptions([]);
+    }
+  };
+
+  // Find main category ID when main category name changes
+  useEffect(() => {
+    if (formData.mainCategory) {
+      findMainCategoryId(formData.mainCategory);
+    } else {
+      setSelectedMainCategoryId(null);
+    }
+  }, [formData.mainCategory]);
+
+  const findMainCategoryId = async (categoryName: string) => {
+    try {
+      const response = await api.get(`/categories?type=main&status=A`);
+      const category = (response.data.categories || []).find(
+        (cat: any) => cat.name === categoryName
+      );
+      if (category) {
+        setSelectedMainCategoryId(category.id);
+      } else {
+        setSelectedMainCategoryId(null);
+      }
+    } catch (error) {
+      console.error('Failed to find category ID:', error);
+    }
+  };
+
+  const handleAddBrand = async (brandName: string) => {
+    try {
+      await api.post('/brands', { name: brandName });
+      setBrandOptions((prev) => [...prev.filter((b) => b !== brandName), brandName].sort());
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to add brand');
+    }
+  };
+
+  const handleAddCategory = async (categoryName: string) => {
+    try {
+      const response = await api.post('/categories', {
+        name: categoryName,
+        type: 'main',
+        status: 'A',
+      });
+      setCategoryOptions((prev) => [...prev.filter((c) => c !== categoryName), categoryName].sort());
+      // Set the new category ID
+      setSelectedMainCategoryId(response.data.category.id);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to add category');
+    }
+  };
+
+  const handleAddSubCategory = async (subCategoryName: string) => {
+    if (!selectedMainCategoryId) {
+      throw new Error('Please select a main category first');
+    }
+    try {
+      await api.post('/categories', {
+        name: subCategoryName,
+        type: 'sub',
+        parentId: selectedMainCategoryId,
+        status: 'A',
+      });
+      setSubCategoryOptions((prev) => [...prev.filter((sc) => sc !== subCategoryName), subCategoryName].sort());
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to add subcategory');
+    }
+  };
+
+  const handleAddApplication = async (applicationName: string) => {
+    try {
+      await api.post('/applications', { name: applicationName });
+      setApplicationOptions((prev) => [...prev.filter((a) => a !== applicationName), applicationName].sort());
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to add application');
+    }
+  };
 
   const handleChange = (field: keyof Part, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -417,8 +548,12 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
           <div className="flex items-center gap-4">
             <div className="h-10 w-1 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full"></div>
             <div>
-              <CardTitle className="text-xl font-semibold text-gray-900">Part Entry / Editing</CardTitle>
-              <p className="text-sm text-gray-500 mt-0.5">Manage inventory part information</p>
+              <CardTitle className="text-xl font-semibold text-gray-900">
+                {part?.id ? 'Edit Part' : 'Create New Part'}
+              </CardTitle>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {part?.id ? `Editing: ${part.partNo}` : 'Add a new inventory part'}
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -452,7 +587,9 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div className="flex-1">{error}</div>
+              <div className="flex-1">
+                {typeof error === 'object' ? JSON.stringify(error) : error}
+              </div>
             </div>
           )}
 
@@ -494,16 +631,15 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <Label htmlFor="brand" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Brand</Label>
-              <Input
-                id="brand"
-                value={formData.brand || ''}
-                onChange={(e) => handleChange('brand', e.target.value)}
-                className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                placeholder="Enter brand name"
-              />
-            </div>
+            <AutocompleteInput
+              id="brand"
+              label="Brand"
+              value={formData.brand || ''}
+              onChange={(value) => handleChange('brand', value)}
+              onAddNew={handleAddBrand}
+              options={brandOptions}
+              placeholder="Type to search or press Enter to add new"
+            />
             <div className="space-y-2">
               <Label htmlFor="description" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Description</Label>
               <Input
@@ -525,36 +661,34 @@ export default function PartForm({ part, onSave, onDelete }: PartFormProps) {
               </h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="mainCategory" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Main Category</Label>
-                <Input
-                  id="mainCategory"
-                  value={formData.mainCategory || ''}
-                  onChange={(e) => handleChange('mainCategory', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="Enter main category"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="subCategory" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Sub Category</Label>
-                <Input
-                  id="subCategory"
-                  value={formData.subCategory || ''}
-                  onChange={(e) => handleChange('subCategory', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="Enter sub category"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="application" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Application</Label>
-                <Input
-                  id="application"
-                  value={formData.application || ''}
-                  onChange={(e) => handleChange('application', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="Enter application"
-                />
-              </div>
+              <AutocompleteInput
+                id="mainCategory"
+                label="Main Category"
+                value={formData.mainCategory || ''}
+                onChange={(value) => handleChange('mainCategory', value)}
+                onAddNew={handleAddCategory}
+                options={categoryOptions}
+                placeholder="Type to search or press Enter to add new"
+              />
+              <AutocompleteInput
+                id="subCategory"
+                label="Sub Category"
+                value={formData.subCategory || ''}
+                onChange={(value) => handleChange('subCategory', value)}
+                onAddNew={handleAddSubCategory}
+                options={subCategoryOptions}
+                placeholder={selectedMainCategoryId ? "Type to search or press Enter to add new" : "Select main category first"}
+                disabled={!selectedMainCategoryId}
+              />
+              <AutocompleteInput
+                id="application"
+                label="Application"
+                value={formData.application || ''}
+                onChange={(value) => handleChange('application', value)}
+                onAddNew={handleAddApplication}
+                options={applicationOptions}
+                placeholder="Type to search or press Enter to add new"
+              />
             </div>
           </div>
 

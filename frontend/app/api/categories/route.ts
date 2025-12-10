@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { verifyToken } from '@/lib/middleware/auth';
 
+// Disable caching for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -12,13 +16,25 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
+    const type = searchParams.get('type'); // 'main' or 'sub'
+    const parentId = searchParams.get('parentId'); // For subcategories
 
     const where: any = {};
-    if (status) {
+    if (status && status !== 'all') {
       where.status = status;
     }
+    if (type) {
+      where.type = type;
+    }
+    if (parentId) {
+      where.parentId = parentId;
+    } else if (type === 'main') {
+      where.parentId = null;
+    }
 
-    // Try to fetch with relations, fallback to simple query if relations don't exist
+    console.log('[Categories API] Query params:', { status, type, parentId, where });
+
+    // Fetch categories - try with relations first, fallback to simple query
     let categories;
     try {
       categories = await prisma.category.findMany({
@@ -44,35 +60,51 @@ export async function GET(request: NextRequest) {
           name: 'asc',
         },
       });
+      console.log('[Categories API] Found categories with relations:', categories.length);
     } catch (relationError: any) {
       // If relations fail, try without them
-      console.warn('Category relations query failed, trying without relations:', relationError.message);
-      categories = await prisma.category.findMany({
-        where,
-        orderBy: {
-          name: 'asc',
-        },
-      });
+      console.warn('[Categories API] Category relations query failed, trying without relations:', relationError.message);
+      try {
+        categories = await prisma.category.findMany({
+          where,
+          orderBy: {
+            name: 'asc',
+          },
+        });
+        console.log('[Categories API] Found categories without relations:', categories.length);
+      } catch (simpleError: any) {
+        console.error('[Categories API] Simple category query also failed:', simpleError);
+        // Return empty array if both queries fail
+        categories = [];
+      }
     }
 
-    return NextResponse.json({ categories });
+    const result = { categories: categories || [] };
+    console.log('[Categories API] Returning:', result.categories.length, 'categories');
+    return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Categories fetch error:', error);
+    console.error('[Categories API] Categories fetch error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch categories', message: error.message },
+      { error: 'Failed to fetch categories', message: error.message, categories: [] },
       { status: 500 }
     );
   }
 }
 
 export async function POST(request: NextRequest) {
+  let body: any;
+  try {
+    // Read body first
+    body = await request.json();
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
   try {
     const user = verifyToken(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const body = await request.json();
     const { name, type, parentId, description, status } = body;
 
     const category = await prisma.category.create({

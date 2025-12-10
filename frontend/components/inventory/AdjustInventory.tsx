@@ -1,0 +1,714 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import api from '@/lib/api';
+
+export interface AdjustmentItem {
+  id?: string;
+  partId?: string;
+  partNo: string;
+  description?: string;
+  previousQuantity: number;
+  adjustedQuantity: number;
+  newQuantity: number;
+  reason?: string;
+  part?: {
+    partNo: string;
+    description?: string;
+    stock?: {
+      quantity: number;
+    };
+  };
+}
+
+export interface InventoryAdjustment {
+  id?: string;
+  adjustmentNo?: string;
+  total: number;
+  date: string;
+  notes?: string;
+  items: AdjustmentItem[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface AdjustInventoryProps {
+  onClose?: () => void;
+}
+
+export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
+  const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [selectedAdjustment, setSelectedAdjustment] = useState<InventoryAdjustment | null>(null);
+  const [viewingAdjustment, setViewingAdjustment] = useState<InventoryAdjustment | null>(null);
+  
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  // Form state
+  const [formData, setFormData] = useState<InventoryAdjustment>({
+    adjustmentNo: '',
+    total: 0,
+    date: new Date().toISOString().split('T')[0],
+    notes: '',
+    items: [],
+  });
+
+  // Part selection
+  const [availableParts, setAvailableParts] = useState<any[]>([]);
+  const [partSearchTerm, setPartSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchAdjustments();
+    fetchParts();
+  }, [page, limit]);
+
+  const fetchAdjustments = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/inventory-adjustments?page=${page}&limit=${limit}`);
+      setAdjustments(response.data.adjustments || []);
+      setTotalPages(response.data.pagination?.totalPages || 1);
+      setTotal(response.data.pagination?.total || 0);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to fetch adjustments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchParts = async () => {
+    try {
+      const response = await api.get('/parts?limit=1000&status=A');
+      setAvailableParts(response.data.parts || []);
+    } catch (err) {
+      console.error('Failed to fetch parts:', err);
+    }
+  };
+
+  const fetchAdjustmentDetails = async (id: string) => {
+    try {
+      const response = await api.get(`/inventory-adjustments/${id}`);
+      return response.data.adjustment;
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to fetch adjustment details');
+      return null;
+    }
+  };
+
+  const handleAddItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, {
+        partNo: '',
+        previousQuantity: 0,
+        adjustedQuantity: 0,
+        newQuantity: 0,
+        reason: '',
+      }],
+    }));
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
+    calculateTotal();
+  };
+
+  const handleItemChange = (index: number, field: keyof AdjustmentItem, value: any) => {
+    const updated = [...formData.items];
+    updated[index] = { ...updated[index], [field]: value };
+
+    // If part is selected, fetch current stock
+    if (field === 'partId' && value) {
+      const part = availableParts.find(p => p.id === value);
+      if (part) {
+        updated[index].partNo = part.partNo;
+        updated[index].description = part.description || '';
+        updated[index].previousQuantity = part.stock?.quantity || 0;
+        updated[index].newQuantity = updated[index].previousQuantity + (updated[index].adjustedQuantity || 0);
+      }
+    }
+
+    // If adjusted quantity changes, update new quantity
+    if (field === 'adjustedQuantity') {
+      updated[index].newQuantity = updated[index].previousQuantity + (value || 0);
+    }
+
+    setFormData(prev => ({ ...prev, items: updated }));
+    calculateTotal();
+  };
+
+  const calculateTotal = () => {
+    const total = formData.items.reduce((sum, item) => {
+      return sum + Math.abs(item.adjustedQuantity || 0);
+    }, 0);
+    setFormData(prev => ({ ...prev, total }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (formData.items.length === 0) {
+      setError('Please add at least one item to adjust');
+      return;
+    }
+
+    if (formData.items.some(item => !item.partNo || item.adjustedQuantity === 0)) {
+      setError('Please fill in all item details correctly');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const adjustmentData = {
+        ...formData,
+        items: formData.items.map(item => ({
+          partId: item.partId || undefined,
+          partNo: item.partNo,
+          description: item.description,
+          previousQuantity: item.previousQuantity,
+          adjustedQuantity: item.adjustedQuantity,
+          reason: item.reason,
+        })),
+      };
+
+      if (selectedAdjustment?.id) {
+        await api.put(`/inventory-adjustments/${selectedAdjustment.id}`, adjustmentData);
+        setSuccess('Adjustment updated successfully');
+      } else {
+        await api.post('/inventory-adjustments', adjustmentData);
+        setSuccess('Adjustment created successfully');
+      }
+
+      resetForm();
+      fetchAdjustments();
+      setTimeout(() => {
+        setShowForm(false);
+        setSuccess('');
+      }, 1500);
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to save adjustment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = async (adjustment: InventoryAdjustment) => {
+    const details = await fetchAdjustmentDetails(adjustment.id!);
+    if (details) {
+      setSelectedAdjustment(details);
+      setFormData({
+        adjustmentNo: details.adjustmentNo || '',
+        total: details.total,
+        date: details.date ? new Date(details.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        notes: details.notes || '',
+        items: details.items.map((item: AdjustmentItem) => ({
+          id: item.id,
+          partId: item.partId,
+          partNo: item.partNo,
+          description: item.description,
+          previousQuantity: item.previousQuantity,
+          adjustedQuantity: item.adjustedQuantity,
+          newQuantity: item.newQuantity,
+          reason: item.reason,
+        })),
+      });
+      setShowForm(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleView = async (adjustment: InventoryAdjustment) => {
+    const details = await fetchAdjustmentDetails(adjustment.id!);
+    if (details) {
+      setViewingAdjustment(details);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this adjustment? This will revert the stock changes.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.delete(`/inventory-adjustments/${id}`);
+      setSuccess('Adjustment deleted successfully');
+      fetchAdjustments();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete adjustment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      adjustmentNo: '',
+      total: 0,
+      date: new Date().toISOString().split('T')[0],
+      notes: '',
+      items: [],
+    });
+    setSelectedAdjustment(null);
+  };
+
+  const filteredParts = availableParts.filter(part =>
+    part.partNo.toLowerCase().includes(partSearchTerm.toLowerCase()) ||
+    part.description?.toLowerCase().includes(partSearchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary-100 rounded-lg">
+            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Adjust Inventory</h1>
+            <p className="text-sm text-gray-500">Manage inventory adjustments and stock corrections</p>
+          </div>
+        </div>
+        <Button
+          onClick={() => {
+            resetForm();
+            setShowForm(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          + Adjust
+        </Button>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-md">
+          {typeof error === 'object' ? JSON.stringify(error) : error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded-md">
+          {success}
+        </div>
+      )}
+
+      {/* Form */}
+      {showForm && (
+        <Card className="shadow-lg border-2 border-primary-200">
+          <CardHeader className="bg-gradient-to-r from-primary-50 to-orange-50 border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl">
+                {selectedAdjustment ? 'Edit Adjustment' : 'Create New Adjustment'}
+              </CardTitle>
+              <Button variant="ghost" onClick={() => { setShowForm(false); resetForm(); }}>
+                ✕
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="adjustmentNo">Adjustment Number</Label>
+                  <Input
+                    id="adjustmentNo"
+                    value={formData.adjustmentNo}
+                    onChange={(e) => setFormData({ ...formData, adjustmentNo: e.target.value })}
+                    placeholder="ADJ-001"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="date">Date *</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="total">Total</Label>
+                  <Input
+                    id="total"
+                    type="number"
+                    step="0.01"
+                    value={formData.total.toFixed(2)}
+                    readOnly
+                    className="mt-1 bg-gray-100"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Items</h3>
+                  <Button type="button" variant="outline" onClick={handleAddItem}>
+                    + Add Item
+                  </Button>
+                </div>
+
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {formData.items.map((item, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-start justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-700">Item {index + 1}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveItem(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Part *</Label>
+                          <select
+                            value={item.partId || ''}
+                            onChange={(e) => handleItemChange(index, 'partId', e.target.value)}
+                            className="mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                            required
+                          >
+                            <option value="">Select part</option>
+                            {filteredParts.map((part) => (
+                              <option key={part.id} value={part.id}>
+                                {part.partNo} - {part.description || 'No description'} (Stock: {part.stock?.quantity || 0})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Part Number *</Label>
+                          <Input
+                            value={item.partNo}
+                            onChange={(e) => handleItemChange(index, 'partNo', e.target.value)}
+                            placeholder="Part number"
+                            required
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Previous Quantity</Label>
+                          <Input
+                            type="number"
+                            value={item.previousQuantity}
+                            readOnly
+                            className="text-sm bg-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Adjusted Quantity *</Label>
+                          <Input
+                            type="number"
+                            value={item.adjustedQuantity}
+                            onChange={(e) => handleItemChange(index, 'adjustedQuantity', parseInt(e.target.value) || 0)}
+                            placeholder="+/- quantity"
+                            required
+                            className="text-sm"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Use positive for increase, negative for decrease
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-xs">New Quantity</Label>
+                          <Input
+                            type="number"
+                            value={item.newQuantity}
+                            readOnly
+                            className="text-sm bg-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Reason</Label>
+                          <Input
+                            value={item.reason || ''}
+                            onChange={(e) => handleItemChange(index, 'reason', e.target.value)}
+                            placeholder="Reason for adjustment"
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {formData.items.length === 0 && (
+                  <p className="text-center text-gray-500 py-8">Click "Add Item" to add items to this adjustment</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Additional notes..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t">
+                <Button type="submit" disabled={loading} className="flex-1 bg-primary-500 hover:bg-primary-600">
+                  {loading ? 'Saving...' : selectedAdjustment ? 'Update Adjustment' : 'Create Adjustment'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    resetForm();
+                    setShowForm(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* View Modal */}
+      {viewingAdjustment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <CardHeader className="bg-gradient-to-r from-primary-50 to-orange-50 border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle>Adjustment Details</CardTitle>
+                <Button variant="ghost" onClick={() => setViewingAdjustment(null)}>✕</Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-500">Adjustment Number</Label>
+                    <p className="font-medium">{viewingAdjustment.adjustmentNo || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Date</Label>
+                    <p className="font-medium">{new Date(viewingAdjustment.date).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Total</Label>
+                    <p className="font-medium text-lg text-primary-600">{viewingAdjustment.total.toFixed(2)}</p>
+                  </div>
+                </div>
+                {viewingAdjustment.notes && (
+                  <div>
+                    <Label className="text-sm text-gray-500">Notes</Label>
+                    <p className="font-medium">{viewingAdjustment.notes}</p>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-sm text-gray-500 mb-2 block">Items</Label>
+                  <div className="space-y-2">
+                    {viewingAdjustment.items.map((item: AdjustmentItem, idx) => (
+                      <div key={idx} className="border border-gray-200 rounded p-3">
+                        <div className="grid grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-500">Part:</span> <span className="font-medium">{item.partNo}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Previous:</span> <span className="font-medium">{item.previousQuantity}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Adjusted:</span> <span className={`font-medium ${item.adjustedQuantity >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {item.adjustedQuantity >= 0 ? '+' : ''}{item.adjustedQuantity}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">New:</span> <span className="font-medium">{item.newQuantity}</span>
+                          </div>
+                        </div>
+                        {item.reason && (
+                          <p className="text-xs text-gray-500 mt-2">Reason: {item.reason}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Table */}
+      <Card className="shadow-lg">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <input type="checkbox" className="rounded border-gray-300" />
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Id</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {loading && adjustments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      Loading adjustments...
+                    </td>
+                  </tr>
+                ) : adjustments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      No adjustments found. Create one to get started.
+                    </td>
+                  </tr>
+                ) : (
+                  adjustments.map((adjustment) => (
+                    <tr key={adjustment.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input type="checkbox" className="rounded border-gray-300" />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {adjustment.id?.substring(adjustment.id.length - 8) || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {adjustment.total.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(adjustment.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleView(adjustment)}
+                            className="text-primary-600 hover:text-primary-800 flex items-center gap-1"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleEdit(adjustment)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => adjustment.id && handleDelete(adjustment.id)}
+                            className="text-red-600 hover:text-red-800 flex items-center gap-1"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, total)} of {total} Records
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+              >
+                First
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                disabled={page === 1}
+              >
+                Prev
+              </Button>
+              <span className="px-3 py-1 text-sm font-medium text-primary-600 bg-primary-50 rounded">
+                {page}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={page === totalPages}
+              >
+                Next
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+              >
+                Last
+              </Button>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(parseInt(e.target.value));
+                  setPage(1);
+                }}
+                className="ml-2 px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+

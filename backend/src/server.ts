@@ -11,6 +11,12 @@ import suppliersRoutes from './routes/suppliers';
 import salesInvoicesRoutes from './routes/sales-invoices';
 import vehiclesRoutes from './routes/vehicles';
 import makesRoutes from './routes/makes';
+import inventoryStockRoutes from './routes/inventory-stock';
+import inventoryAdjustmentsRoutes from './routes/inventory-adjustments';
+import customersRoutes from './routes/customers';
+import statsRoutes from './routes/stats';
+import partsManagementRoutes from './routes/parts-management';
+import racksRoutes from './routes/racks';
 
 dotenv.config();
 
@@ -39,6 +45,12 @@ app.use('/api/suppliers', suppliersRoutes);
 app.use('/api/sales-invoices', salesInvoicesRoutes);
 app.use('/api/vehicles', vehiclesRoutes);
 app.use('/api/makes', makesRoutes);
+app.use('/api/inventory-stock', inventoryStockRoutes);
+app.use('/api/inventory-adjustments', inventoryAdjustmentsRoutes);
+app.use('/api/customers', customersRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/parts-management', partsManagementRoutes);
+app.use('/api/racks', racksRoutes);
 
 // Also handle routes without /api prefix (for Vercel routing)
 app.use('/auth', authRoutes);
@@ -51,6 +63,12 @@ app.use('/suppliers', suppliersRoutes);
 app.use('/sales-invoices', salesInvoicesRoutes);
 app.use('/vehicles', vehiclesRoutes);
 app.use('/makes', makesRoutes);
+app.use('/inventory-stock', inventoryStockRoutes);
+app.use('/inventory-adjustments', inventoryAdjustmentsRoutes);
+app.use('/customers', customersRoutes);
+app.use('/stats', statsRoutes);
+app.use('/parts-management', partsManagementRoutes);
+app.use('/racks', racksRoutes);
 
 // Health check
 app.get('/api/health', async (req, res) => {

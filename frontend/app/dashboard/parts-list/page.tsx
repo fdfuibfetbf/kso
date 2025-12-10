@@ -11,6 +11,7 @@ import api from '@/lib/api';
 import { Part } from '@/components/inventory/PartForm';
 import { Kit } from '@/components/inventory/KitForm';
 import PartForm from '@/components/inventory/PartForm';
+import KitForm from '@/components/inventory/KitForm';
 import {
   Dialog,
   DialogContent,
@@ -53,9 +54,12 @@ export default function PartsListPage() {
   const [originFilter, setOriginFilter] = useState('');
   const [gradeFilter, setGradeFilter] = useState('');
   
-  // Edit/Delete states
+  // Edit/Delete/Create states
   const [editingPart, setEditingPart] = useState<Part | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreatingPart, setIsCreatingPart] = useState(false);
+  const [editingKit, setEditingKit] = useState<Kit | null>(null);
+  const [isCreatingKit, setIsCreatingKit] = useState(false);
   const [deletingPartId, setDeletingPartId] = useState<string | null>(null);
   
   // Get unique values for filter dropdowns
@@ -167,6 +171,7 @@ export default function PartsListPage() {
 
   const handleSavePart = (part: Part) => {
     setIsEditDialogOpen(false);
+    setIsCreatingPart(false);
     setEditingPart(null);
     loadParts();
     loadFilterOptions();
@@ -174,6 +179,51 @@ export default function PartsListPage() {
 
   const handleDeletePart = (id: string) => {
     handleDelete(id);
+  };
+
+  const handleSaveKit = (kit: Kit) => {
+    setIsCreatingKit(false);
+    setEditingKit(null);
+    loadKits();
+    // Show success message or handle as needed
+  };
+
+  const handleDeleteKitFromForm = (id: string) => {
+    handleDeleteKit(id);
+  };
+
+  const handleNewPart = () => {
+    setEditingPart(null);
+    setIsCreatingPart(true);
+    // Scroll to form section
+    setTimeout(() => {
+      const formSection = document.getElementById('part-form-section');
+      if (formSection) {
+        formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  const handleCancelCreatePart = () => {
+    setIsCreatingPart(false);
+    setEditingPart(null);
+  };
+
+  const handleNewKit = () => {
+    setEditingKit(null);
+    setIsCreatingKit(true);
+    // Scroll to form section
+    setTimeout(() => {
+      const formSection = document.getElementById('kit-form-section');
+      if (formSection) {
+        formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  const handleCancelCreateKit = () => {
+    setIsCreatingKit(false);
+    setEditingKit(null);
   };
 
   const clearFilters = useCallback(() => {
@@ -213,6 +263,18 @@ export default function PartsListPage() {
     kit.description?.toLowerCase().includes(kitSearchTerm.toLowerCase())
   );
 
+  const handleEditKit = (kit: Kit) => {
+    setEditingKit(kit);
+    setIsCreatingKit(true);
+    // Scroll to form section
+    setTimeout(() => {
+      const formSection = document.getElementById('kit-form-section');
+      if (formSection) {
+        formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
   const handleDeleteKit = async (id: string) => {
     if (!confirm('Are you sure you want to delete this kit?')) {
       return;
@@ -231,43 +293,82 @@ export default function PartsListPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="h-10 w-1 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full"></div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Parts & Kits List</h1>
-              <p className="text-sm text-gray-500 mt-1">Search, filter, and manage all inventory parts and kits</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="h-10 w-1 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full"></div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Parts & Kits List</h1>
+                <p className="text-sm text-gray-500 mt-1">Search, filter, and manage all inventory parts and kits</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {activeTab === 'parts' ? (
+                isCreatingPart ? (
+                  <Button
+                    onClick={handleCancelCreatePart}
+                    variant="outline"
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleNewPart}
+                    className="bg-primary-500 hover:bg-primary-600 text-white"
+                  >
+                    + New Part
+                  </Button>
+                )
+              ) : activeTab === 'kits' ? (
+                isCreatingKit ? (
+                  <Button
+                    onClick={handleCancelCreateKit}
+                    variant="outline"
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleNewKit}
+                    className="bg-primary-500 hover:bg-primary-600 text-white"
+                  >
+                    + New Kit
+                  </Button>
+                )
+              ) : null}
             </div>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-start gap-2 py-2" style={{ paddingLeft: '113px' }}>
+          <div className="flex border-b border-gray-200">
             <button
-              onClick={() => setActiveTab('parts')}
-              className={`
-                flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-full
-                transition-colors whitespace-nowrap min-h-[32px] flex-shrink-0
-                ${
-                  activeTab === 'parts'
-                    ? 'bg-primary-50 text-primary-600 border border-primary-200'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
-                }
-              `}
+              onClick={() => {
+                setActiveTab('parts');
+                setIsCreatingPart(false);
+                setIsCreatingKit(false);
+              }}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'parts'
+                  ? 'text-primary-600 border-b-2 border-primary-500 bg-primary-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
             >
               Parts List
             </button>
             <button
-              onClick={() => setActiveTab('kits')}
-              className={`
-                flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-full
-                transition-colors whitespace-nowrap min-h-[32px] flex-shrink-0
-                ${
-                  activeTab === 'kits'
-                    ? 'bg-primary-50 text-primary-600 border border-primary-200'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
-                }
-              `}
+              onClick={() => {
+                setActiveTab('kits');
+                setIsCreatingPart(false);
+                setIsCreatingKit(false);
+              }}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'kits'
+                  ? 'text-primary-600 border-b-2 border-primary-500 bg-primary-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
             >
               Kits List
             </button>
@@ -277,7 +378,33 @@ export default function PartsListPage() {
         {/* Parts List Content */}
         {activeTab === 'parts' && (
           <>
-        {/* Search and Filters Card */}
+        {/* Create New Part Form - Shows when creating, hides filters and table */}
+        {isCreatingPart && (
+          <Card id="part-form-section" className="mb-6 bg-white border-2 border-primary-200 shadow-lg rounded-xl">
+            <CardHeader className="bg-gradient-to-r from-primary-50 to-orange-50 border-b border-primary-200">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-semibold text-gray-900">Create New Part</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancelCreatePart}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  ✕ Cancel
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <PartForm
+                part={null}
+                onSave={handleSavePart}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Search and Filters Card - Hidden when creating */}
+        {!isCreatingPart && (
         <Card className="mb-6 bg-white border border-gray-200 shadow-sm rounded-xl">
           <CardHeader className="border-b border-gray-200">
             <CardTitle className="text-lg font-semibold text-gray-900">Search & Filters</CardTitle>
@@ -398,8 +525,10 @@ export default function PartsListPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* Parts Table Card */}
+        {/* Parts Table Card - Hidden when creating */}
+        {!isCreatingPart && (
         <Card className="bg-white border border-gray-200 shadow-sm rounded-xl">
           <CardHeader className="border-b border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between">
@@ -583,11 +712,43 @@ export default function PartsListPage() {
             )}
           </CardContent>
         </Card>
+        )}
           </>
         )}
 
         {/* Kits List Content */}
         {activeTab === 'kits' && (
+          <>
+        {/* Create/Edit Kit Form - Shows when creating/editing, hides list */}
+        {isCreatingKit && (
+          <Card id="kit-form-section" className="mb-6 bg-white border-2 border-primary-200 shadow-lg rounded-xl">
+            <CardHeader className="bg-gradient-to-r from-primary-50 to-orange-50 border-b border-primary-200">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-semibold text-gray-900">
+                  {editingKit ? 'Edit Kit' : 'Create New Kit'}
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancelCreateKit}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  ✕ Cancel
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <KitForm
+                kit={editingKit}
+                onSave={handleSaveKit}
+                onDelete={editingKit?.id ? handleDeleteKitFromForm : undefined}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Kits List - Hidden when creating/editing */}
+        {!isCreatingKit && (
           <Card className="bg-white border border-gray-200 shadow-sm rounded-xl">
             <CardHeader className="border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
@@ -605,7 +766,7 @@ export default function PartsListPage() {
                       placeholder="Search kits..."
                       value={kitSearchTerm}
                       onChange={(e) => setKitSearchTerm(e.target.value)}
-                      className="w-full pl-10 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      className="pl-10 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                     />
                   </div>
                 </div>
@@ -693,7 +854,7 @@ export default function PartsListPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.location.href = `/dashboard/kits`}
+                            onClick={() => handleEditKit(kit)}
                             className="border-primary-300 text-primary-700 hover:bg-primary-50"
                           >
                             Edit
@@ -715,9 +876,11 @@ export default function PartsListPage() {
             </CardContent>
           </Card>
         )}
+          </>
+        )}
       </div>
 
-      {/* Edit Dialog */}
+      {/* Edit Part Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-hide">
           <DialogHeader>
@@ -737,7 +900,8 @@ export default function PartsListPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+
     </div>
   );
 }
-

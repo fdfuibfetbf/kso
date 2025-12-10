@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -23,6 +23,19 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import api from '@/lib/api';
+
+// Icons
+const ManageAccountsIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+  </svg>
+);
+
+const DailyClosingIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
 
 // Types
 interface MainGroup {
@@ -55,10 +68,18 @@ interface Account {
 }
 
 export default function AccountsPage() {
+  // Main section tabs
+  const [mainSection, setMainSection] = useState('manage-accounts');
   const [activeTab, setActiveTab] = useState('main-groups');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Daily Closing state
+  const [closingDate, setClosingDate] = useState(new Date().toISOString().split('T')[0]);
+  const [closingNotes, setClosingNotes] = useState('');
+  const [dailyClosings, setDailyClosings] = useState<any[]>([]);
+  const [closingDialogOpen, setClosingDialogOpen] = useState(false);
 
   // Main Groups
   const [mainGroups, setMainGroups] = useState<MainGroup[]>([]);
@@ -353,31 +374,80 @@ export default function AccountsPage() {
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 bg-gray-50 min-h-screen transition-smooth">
       <Card className="bg-white shadow-soft">
-        <CardContent className="p-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="px-3 sm:px-4 md:px-6 pt-4 md:pt-6">
-              <TabsList className="grid w-full grid-cols-3 gap-1 sm:gap-2">
-                <TabsTrigger value="main-groups" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 py-2 sm:py-2.5">
-                  <span className="text-sm sm:text-base md:text-lg">A</span>
-                  <span className="hidden xs:inline">Main Groups</span>
-                  <span className="xs:hidden">Main</span>
-                </TabsTrigger>
-                <TabsTrigger value="subgroups" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 py-2 sm:py-2.5">
-                  <span className="text-sm sm:text-base md:text-lg">A</span>
-                  <span className="hidden xs:inline">Subgroups</span>
-                  <span className="xs:hidden">Sub</span>
-                </TabsTrigger>
-                <TabsTrigger value="accounts" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 py-2 sm:py-2.5">
-                  <span className="text-sm sm:text-base md:text-lg">A</span>
-                  <span className="hidden xs:inline">Accounts</span>
-                  <span className="xs:hidden">Acc</span>
-                </TabsTrigger>
-              </TabsList>
+        {/* Main Section Tabs - Parts Management Style */}
+        <div className="flex justify-center border-b border-gray-200 bg-white rounded-t-lg">
+          <button
+            onClick={() => setMainSection('manage-accounts')}
+            className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all duration-200 ${
+              mainSection === 'manage-accounts'
+                ? 'text-primary-600 border-b-2 border-primary-500 bg-primary-50'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <ManageAccountsIcon className="w-5 h-5" />
+            <span>Manage Accounts</span>
+          </button>
+          <button
+            onClick={() => setMainSection('daily-closing')}
+            className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all duration-200 ${
+              mainSection === 'daily-closing'
+                ? 'text-primary-600 border-b-2 border-primary-500 bg-primary-50'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <DailyClosingIcon className="w-5 h-5" />
+            <span>Daily Closing</span>
+          </button>
+        </div>
+
+        {/* Manage Accounts Section */}
+        {mainSection === 'manage-accounts' && (
+          <div className="p-0">
+            {/* Sub Tabs - Similar style */}
+            <div className="px-3 sm:px-4 md:px-6 pt-4 md:pt-6 border-b border-gray-100">
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setActiveTab('main-groups')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-all duration-200 ${
+                    activeTab === 'main-groups'
+                      ? 'text-primary-600 bg-primary-50 border-b-2 border-primary-500'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">A</span>
+                  <span className="hidden sm:inline">Main Groups</span>
+                  <span className="sm:hidden">Main</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('subgroups')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-all duration-200 ${
+                    activeTab === 'subgroups'
+                      ? 'text-primary-600 bg-primary-50 border-b-2 border-primary-500'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-600">S</span>
+                  <span className="hidden sm:inline">Subgroups</span>
+                  <span className="sm:hidden">Sub</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('accounts')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-all duration-200 ${
+                    activeTab === 'accounts'
+                      ? 'text-primary-600 bg-primary-50 border-b-2 border-primary-500'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-600">A</span>
+                  <span className="hidden sm:inline">Accounts</span>
+                  <span className="sm:hidden">Acc</span>
+                </button>
+              </div>
             </div>
 
             {error && (
               <div className="mx-3 sm:mx-4 md:mx-6 mt-3 sm:mt-4 bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded-md text-sm sm:text-base">
-                {error}
+                {typeof error === 'object' ? JSON.stringify(error) : error}
               </div>
             )}
 
@@ -388,7 +458,7 @@ export default function AccountsPage() {
             )}
 
             {/* Main Groups Tab */}
-            <TabsContent value="main-groups" className="mt-0">
+            {activeTab === 'main-groups' && (
               <div className="px-3 sm:px-4 md:px-6 pb-4 sm:pb-6 space-y-3 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="flex items-center gap-2 sm:gap-3">
@@ -470,10 +540,10 @@ export default function AccountsPage() {
                   </div>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* Subgroups Tab */}
-            <TabsContent value="subgroups" className="mt-0">
+            {activeTab === 'subgroups' && (
               <div className="px-3 sm:px-4 md:px-6 pb-4 sm:pb-6 space-y-3 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="flex items-center gap-2 sm:gap-3">
@@ -496,7 +566,7 @@ export default function AccountsPage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                  <div className="flex-1 w-full">
+                  <div>
                     <Label htmlFor="subgroup-main-group-filter" className="text-sm sm:text-base mb-1 sm:mb-2 block">Main Group</Label>
                     <Select
                       id="subgroup-main-group-filter"
@@ -512,7 +582,7 @@ export default function AccountsPage() {
                       ))}
                     </Select>
                   </div>
-                  <div className="flex-1 w-full">
+                  <div>
                     <Label htmlFor="subgroup-status-filter" className="text-sm sm:text-base mb-1 sm:mb-2 block">Status</Label>
                     <Select
                       id="subgroup-status-filter"
@@ -601,10 +671,10 @@ export default function AccountsPage() {
                   </div>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* Accounts Tab */}
-            <TabsContent value="accounts" className="mt-0">
+            {activeTab === 'accounts' && (
               <div className="px-3 sm:px-4 md:px-6 pb-4 sm:pb-6 space-y-3 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="flex items-center gap-2 sm:gap-3">
@@ -631,7 +701,7 @@ export default function AccountsPage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                  <div className="flex-1 w-full">
+                  <div>
                     <Label htmlFor="account-main-group-filter" className="text-sm sm:text-base mb-1 sm:mb-2 block">Main Group</Label>
                     <Select
                       id="account-main-group-filter"
@@ -650,7 +720,7 @@ export default function AccountsPage() {
                       ))}
                     </Select>
                   </div>
-                  <div className="flex-1 w-full">
+                  <div>
                     <Label htmlFor="account-sub-group-filter" className="text-sm sm:text-base mb-1 sm:mb-2 block">Sub Group</Label>
                     <Select
                       id="account-sub-group-filter"
@@ -666,7 +736,7 @@ export default function AccountsPage() {
                       ))}
                     </Select>
                   </div>
-                  <div className="flex-1 w-full">
+                  <div>
                     <Label htmlFor="account-status-filter" className="text-sm sm:text-base mb-1 sm:mb-2 block">Status</Label>
                     <Select
                       id="account-status-filter"
@@ -769,10 +839,237 @@ export default function AccountsPage() {
                   </div>
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
+            )}
+          </div>
+        )}
+
+        {/* Daily Closing Section */}
+        {mainSection === 'daily-closing' && (
+          <div className="px-3 sm:px-4 md:px-6 py-4 md:py-6 space-y-4 md:space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <DailyClosingIcon />
+                  </div>
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Daily Closing</h2>
+                    <p className="text-sm text-gray-500">End of day account reconciliation</p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => setClosingDialogOpen(true)}
+                  className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg"
+                >
+                  + New Daily Closing
+                </Button>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                  {typeof error === 'object' ? JSON.stringify(error) : error}
+                </div>
+              )}
+
+              {success && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                  {success}
+                </div>
+              )}
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-blue-600 font-medium">Total Credits</p>
+                      <p className="text-2xl font-bold text-blue-700">₹0.00</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-red-600 font-medium">Total Debits</p>
+                      <p className="text-2xl font-bold text-red-700">₹0.00</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-green-600 font-medium">Net Balance</p>
+                      <p className="text-2xl font-bold text-green-700">₹0.00</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-purple-600 font-medium">Cash in Hand</p>
+                      <p className="text-2xl font-bold text-purple-700">₹0.00</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Date Filter */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+                <div className="w-full sm:w-auto">
+                  <Label htmlFor="closing-date-filter" className="text-sm font-medium text-gray-700 mb-2 block">Select Date</Label>
+                  <Input
+                    id="closing-date-filter"
+                    type="date"
+                    value={closingDate}
+                    onChange={(e) => setClosingDate(e.target.value)}
+                    className="w-full sm:w-48"
+                  />
+                </div>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  View Report
+                </Button>
+              </div>
+
+              {/* Daily Closing History Table */}
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Closing History</h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="px-4 text-sm">Date</TableHead>
+                        <TableHead className="px-4 text-sm">Total Credits</TableHead>
+                        <TableHead className="px-4 text-sm">Total Debits</TableHead>
+                        <TableHead className="px-4 text-sm">Net Balance</TableHead>
+                        <TableHead className="px-4 text-sm">Cash in Hand</TableHead>
+                        <TableHead className="px-4 text-sm">Status</TableHead>
+                        <TableHead className="px-4 text-sm">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dailyClosings.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-12 text-gray-500">
+                            <div className="flex flex-col items-center gap-3">
+                              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                                <DailyClosingIcon />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-600">No closing records found</p>
+                                <p className="text-sm text-gray-400">Create your first daily closing to get started</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        dailyClosings.map((closing: any) => (
+                          <TableRow key={closing.id} className="hover:bg-gray-50 transition-colors">
+                            <TableCell className="px-4 font-medium">{closing.date}</TableCell>
+                            <TableCell className="px-4 text-blue-600">₹{closing.totalCredits}</TableCell>
+                            <TableCell className="px-4 text-red-600">₹{closing.totalDebits}</TableCell>
+                            <TableCell className="px-4 text-green-600">₹{closing.netBalance}</TableCell>
+                            <TableCell className="px-4">₹{closing.cashInHand}</TableCell>
+                            <TableCell className="px-4">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                closing.status === 'Completed' 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {closing.status}
+                              </span>
+                            </TableCell>
+                            <TableCell className="px-4">
+                              <Button variant="outline" size="sm">View</Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+          </div>
+        )}
       </Card>
+
+      {/* Daily Closing Dialog */}
+      <Dialog open={closingDialogOpen} onOpenChange={setClosingDialogOpen}>
+        <DialogContent className="max-h-[100vh] sm:max-h-[90vh] max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">Create Daily Closing</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-4 sm:space-y-5">
+            <div>
+              <Label htmlFor="closing-date" className="text-sm font-medium mb-2 block">Closing Date</Label>
+              <Input
+                id="closing-date"
+                type="date"
+                value={closingDate}
+                onChange={(e) => setClosingDate(e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="opening-cash" className="text-sm font-medium mb-2 block">Opening Cash</Label>
+                <Input
+                  id="opening-cash"
+                  type="number"
+                  placeholder="0.00"
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <Label htmlFor="closing-cash" className="text-sm font-medium mb-2 block">Closing Cash</Label>
+                <Input
+                  id="closing-cash"
+                  type="number"
+                  placeholder="0.00"
+                  step="0.01"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="closing-notes" className="text-sm font-medium mb-2 block">Notes</Label>
+              <Textarea
+                id="closing-notes"
+                value={closingNotes}
+                onChange={(e) => setClosingNotes(e.target.value)}
+                placeholder="Add any notes for this closing..."
+                rows={3}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={() => setClosingDialogOpen(false)} className="w-full sm:w-auto">
+                Cancel
+              </Button>
+              <Button type="submit" className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
+                Create Closing
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Main Group Dialog */}
       <Dialog open={mainGroupDialogOpen} onOpenChange={setMainGroupDialogOpen}>

@@ -142,26 +142,14 @@ export default function DashboardLayout({
   const isPartsPage = 
     pathname === '/dashboard/parts' || 
     pathname.startsWith('/dashboard/parts/') ||
+    pathname === '/dashboard/parts-list' ||
+    pathname.startsWith('/dashboard/parts-list/') ||
     pathname === '/dashboard/categories' ||
     pathname.startsWith('/dashboard/categories/') ||
     pathname === '/dashboard/subcategories' ||
     pathname.startsWith('/dashboard/subcategories/') ||
-    pathname === '/dashboard/parts-list' ||
-    pathname.startsWith('/dashboard/parts-list/') ||
-    pathname === '/dashboard/parts-entry' ||
-    pathname.startsWith('/dashboard/parts-entry/') ||
     pathname === '/dashboard/models' ||
-    pathname.startsWith('/dashboard/models/') ||
-    pathname === '/dashboard/vehicles' ||
-    pathname.startsWith('/dashboard/vehicles/') ||
-    pathname === '/dashboard/make' ||
-    pathname.startsWith('/dashboard/make/') ||
-    pathname === '/dashboard/applications' ||
-    pathname.startsWith('/dashboard/applications/') ||
-    pathname === '/dashboard/dimensions' ||
-    pathname.startsWith('/dashboard/dimensions/') ||
-    pathname === '/dashboard/companies' ||
-    pathname.startsWith('/dashboard/companies/');
+    pathname.startsWith('/dashboard/models/');
   
   const partsTabs = [
     { label: 'Parts Entry', path: '/dashboard/parts', icon: (
@@ -169,14 +157,19 @@ export default function DashboardLayout({
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
       </svg>
     )},
+    { label: 'Items', path: '/dashboard/parts-list', icon: (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+      </svg>
+    )},
     { label: 'Category', path: '/dashboard/categories', icon: (
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
       </svg>
     )},
-    { label: 'Items', path: '/dashboard/parts-list', icon: (
+    { label: 'Subcategory', path: '/dashboard/subcategories', icon: (
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
       </svg>
     )},
     { label: 'Models', path: '/dashboard/models', icon: (
@@ -184,32 +177,27 @@ export default function DashboardLayout({
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     )},
-    { label: 'Vehicles', path: '/dashboard/vehicles', icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-      </svg>
-    )},
-    { label: 'Make', path: '/dashboard/make', icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-      </svg>
-    )},
-    { label: 'Applications', path: '/dashboard/applications', icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-      </svg>
-    )},
-    { label: 'Dimensions', path: '/dashboard/dimensions', icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-      </svg>
-    )},
-    { label: 'Companies', path: '/dashboard/companies', icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-      </svg>
-    )},
+  ];
+
+  // Customers tabs - show on customers pages
+  const isCustomersPage = 
+    pathname === '/dashboard/customers' || 
+    pathname.startsWith('/dashboard/customers/');
+  
+  const customersTabs = [
+    { 
+      label: 'Manage Customers', 
+      path: '/dashboard/customers', 
+      icon: (
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {/* Two people */}
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          {/* Gear icon */}
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      )
+    },
   ];
 
   const getGreeting = () => {
@@ -408,6 +396,78 @@ export default function DashboardLayout({
             >
               <nav className="flex items-center gap-1 px-2 h-full">
                 {partsTabs.map((tab) => {
+                  // Determine active state based on current pathname
+                  const isActive = pathname === tab.path || (tab.path !== '/dashboard' && pathname.startsWith(tab.path + '/'));
+
+                  return (
+                    <Link
+                      key={tab.label}
+                      href={tab.path}
+                      prefetch={true}
+                      className={`
+                        flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 rounded-full min-h-[40px]
+                        ${
+                          isActive
+                            ? 'bg-primary-50 text-primary-600 border border-primary-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
+                        }
+                      `}
+                    >
+                      {tab.icon}
+                      {tab.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </>
+        )}
+
+        {/* Customers Tabs below header */}
+        {isCustomersPage && (
+          <>
+            {/* Desktop / Tablet - centered tabs */}
+            <div 
+              className="hidden md:flex bg-white border-b border-gray-200 shadow-sm parts-tabs-bar overflow-x-auto"
+              style={{ top: `${headerHeight}px` }}
+            >
+              <div className="w-full flex items-center justify-center h-full min-w-max">
+                <nav className="flex items-center justify-center gap-3 px-6 h-full">
+                {customersTabs.map((tab) => {
+                  // Determine active state based on current pathname
+                  const isActive = pathname === tab.path || (tab.path !== '/dashboard' && pathname.startsWith(tab.path + '/'));
+
+                  return (
+                    <Link
+                      key={tab.label}
+                      href={tab.path}
+                      prefetch={true}
+                      className={`
+                        flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-full
+                        transition-colors whitespace-nowrap min-h-[36px] flex-shrink-0
+                        ${
+                          isActive
+                            ? 'bg-primary-50 text-primary-600 border border-primary-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
+                        }
+                      `}
+                    >
+                      {tab.icon}
+                      {tab.label}
+                    </Link>
+                  );
+                })}
+                </nav>
+              </div>
+            </div>
+
+            {/* Mobile - scrollable row */}
+            <div 
+              className="md:hidden bg-white border-b border-gray-200 overflow-x-auto shadow-sm parts-tabs-bar"
+              style={{ top: `${headerHeight}px` }}
+            >
+              <nav className="flex items-center gap-1 px-2 h-full">
+                {customersTabs.map((tab) => {
                   // Determine active state based on current pathname
                   const isActive = pathname === tab.path || (tab.path !== '/dashboard' && pathname.startsWith(tab.path + '/'));
 

@@ -1,7 +1,9 @@
 import axios from 'axios';
 
-// API is now part of the same Next.js app
-const API_URL = typeof window !== 'undefined' ? '/api' : process.env.NEXT_PUBLIC_API_URL || '/api';
+// API URL configuration - use Next.js API routes
+const API_URL = typeof window !== 'undefined' 
+  ? (process.env.NEXT_PUBLIC_API_URL || '/api')
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api');
 
 const api = axios.create({
   baseURL: API_URL,

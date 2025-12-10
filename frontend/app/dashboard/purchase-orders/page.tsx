@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select } from '@/components/ui/select';
 import api from '@/lib/api';
 import { Part } from '@/components/inventory/PartForm';
 
@@ -36,7 +37,7 @@ export interface Supplier {
 export interface PurchaseOrder {
   id?: string;
   poNo: string;
-  type: 'purchase' | 'direct';
+  type: 'purchase';
   supplierId?: string;
   supplier?: Supplier;
   supplierName: string;
@@ -57,7 +58,7 @@ export interface PurchaseOrder {
 }
 
 export default function PurchaseOrdersPage() {
-  const [activeTab, setActiveTab] = useState<'purchase' | 'direct'>('purchase');
+  // Removed activeTab - only Purchase Order type is supported
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [availableParts, setAvailableParts] = useState<Part[]>([]);
   const [availableSuppliers, setAvailableSuppliers] = useState<Supplier[]>([]);
@@ -99,13 +100,7 @@ export default function PurchaseOrdersPage() {
       fetchPurchaseOrders();
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [activeTab, statusFilter, searchTerm]);
-
-  useEffect(() => {
-    if (activeTab) {
-      setFormData(prev => ({ ...prev, type: activeTab }));
-    }
-  }, [activeTab]);
+  }, [statusFilter, searchTerm]);
 
   useEffect(() => {
     calculateTotals();
@@ -117,7 +112,7 @@ export default function PurchaseOrdersPage() {
       const params = new URLSearchParams();
       if (statusFilter) params.append('status', statusFilter);
       if (searchTerm) params.append('search', searchTerm);
-      params.append('type', activeTab);
+      params.append('type', 'purchase');
       
       const response = await api.get(`/purchase-orders?${params.toString()}`);
       setPurchaseOrders(response.data.purchaseOrders);
@@ -195,15 +190,16 @@ export default function PurchaseOrdersPage() {
       setError('Maximum 20 items allowed per purchase order');
       return;
     }
+    // Add new item at the beginning of the array (top of the list)
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, {
+      items: [{
         partNo: '',
         quantity: 1,
         unitPrice: 0,
         totalPrice: 0,
         uom: '',
-      }],
+      }, ...prev.items],
     }));
   };
 
@@ -257,8 +253,9 @@ export default function PurchaseOrdersPage() {
       setLoading(true);
       const poData = {
         ...formData,
-        type: activeTab,
-        supplierId: activeTab === 'purchase' && formData.supplierId ? formData.supplierId : undefined,
+        poNo: selectedPO?.id ? formData.poNo : undefined, // Don't send poNo for new orders - backend will generate it
+        type: 'purchase',
+        supplierId: formData.supplierId ? formData.supplierId : undefined,
         items: formData.items.map(item => ({
           partId: item.partId || undefined,
           partNo: item.partNo,
@@ -280,8 +277,9 @@ export default function PurchaseOrdersPage() {
         setSelectedPO(response.data.purchaseOrder);
       }
       
-      resetForm();
-      fetchPurchaseOrders();
+      await                       resetForm().then(() => {
+                        fetchPurchaseOrders();
+                      });
       setTimeout(() => setShowForm(false), 1500);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to save purchase order');
@@ -298,7 +296,6 @@ export default function PurchaseOrdersPage() {
       orderDate: po.orderDate ? new Date(po.orderDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       expectedDate: po.expectedDate ? new Date(po.expectedDate).toISOString().split('T')[0] : '',
     });
-    setActiveTab(po.type);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -324,10 +321,21 @@ export default function PurchaseOrdersPage() {
     }
   };
 
-  const resetForm = () => {
+  const fetchNextPONumber = async () => {
+    try {
+      const response = await api.get('/purchase-orders/next-po-number/purchase');
+      return response.data.nextPONumber;
+    } catch (error) {
+      console.error('Failed to fetch next PO number:', error);
+      return '';
+    }
+  };
+
+  const resetForm = async () => {
+    const nextPONumber = await fetchNextPONumber();
     setFormData({
-      poNo: '',
-      type: activeTab,
+      poNo: nextPONumber,
+      type: 'purchase',
       supplierId: '',
       supplierName: '',
       supplierEmail: '',
@@ -385,12 +393,13 @@ export default function PurchaseOrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Purchase Orders</h1>
-          <p className="text-sm text-gray-500">Manage purchase orders and direct purchases</p>
+          <p className="text-sm text-gray-500">Manage purchase orders</p>
         </div>
         <Button
           onClick={() => {
-            resetForm();
-            setShowForm(true);
+            resetForm().then(() => {
+              setShowForm(true);
+            });
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           className="bg-primary-500 hover:bg-primary-600 shadow-lg hover:shadow-xl transition-all duration-300"
@@ -399,43 +408,10 @@ export default function PurchaseOrdersPage() {
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-soft border border-gray-200 p-1">
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setActiveTab('purchase');
-              setFormData(prev => ({ ...prev, type: 'purchase' }));
-              fetchPurchaseOrders();
-            }}
-            className={`flex-1 px-6 py-3 rounded-md font-medium transition-all duration-300 ${
-              activeTab === 'purchase'
-                ? 'bg-primary-500 text-white shadow-md transform scale-105'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            Purchase Order
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('direct');
-              setFormData(prev => ({ ...prev, type: 'direct' }));
-              fetchPurchaseOrders();
-            }}
-            className={`flex-1 px-6 py-3 rounded-md font-medium transition-all duration-300 ${
-              activeTab === 'direct'
-                ? 'bg-primary-500 text-white shadow-md transform scale-105'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            Direct Purchase Order
-          </button>
-        </div>
-      </div>
 
       {error && (
         <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-md shadow-sm animate-fade-in">
-          {error}
+          {typeof error === 'object' ? JSON.stringify(error) : error}
         </div>
       )}
 
@@ -451,7 +427,7 @@ export default function PurchaseOrdersPage() {
           <CardHeader className="bg-gradient-to-r from-primary-50 to-orange-50 border-b">
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl">
-                {selectedPO ? 'Edit Purchase Order' : `Create New ${activeTab === 'purchase' ? 'Purchase' : 'Direct Purchase'} Order`}
+                {selectedPO ? 'Edit Purchase Order' : 'Create New Purchase Order'}
               </CardTitle>
               <Button variant="ghost" onClick={() => { setShowForm(false); resetForm(); }}>
                 ✕
@@ -460,367 +436,220 @@ export default function PurchaseOrdersPage() {
           </CardHeader>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="poNo">PO Number *</Label>
-                  <Input
-                    id="poNo"
-                    value={formData.poNo}
-                    onChange={(e) => setFormData({ ...formData, poNo: e.target.value })}
-                    placeholder="PO-001"
-                    required
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="orderDate">Order Date *</Label>
-                  <Input
-                    id="orderDate"
-                    type="date"
-                    value={formData.orderDate}
-                    onChange={(e) => setFormData({ ...formData, orderDate: e.target.value })}
-                    required
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="expectedDate">Expected Delivery Date</Label>
-                  <Input
-                    id="expectedDate"
-                    type="date"
-                    value={formData.expectedDate}
-                    onChange={(e) => setFormData({ ...formData, expectedDate: e.target.value })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="received">Received</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <h3 className="text-lg font-semibold mb-4">Supplier Information</h3>
-                {activeTab === 'purchase' ? (
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="supplierId">Select Supplier *</Label>
-                      <div className="flex gap-2 mt-1">
-                        <select
-                          id="supplierId"
-                          value={formData.supplierId || ''}
-                          onChange={(e) => handleSupplierChange(e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          required
-                        >
-                          <option value="">Select a supplier</option>
-                          {availableSuppliers.map((supplier) => (
-                            <option key={supplier.id} value={supplier.id}>
-                              {supplier.code} - {supplier.name}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => window.open('/dashboard/suppliers', '_blank')}
-                          className="whitespace-nowrap"
-                        >
-                          Manage Suppliers
-                        </Button>
-                      </div>
-                      {formData.supplierId && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Supplier details will be auto-filled below
-                        </p>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="supplierName">Supplier Name *</Label>
-                        <Input
-                          id="supplierName"
-                          value={formData.supplierName}
-                          onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
-                          required
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="supplierEmail">Supplier Email</Label>
-                        <Input
-                          id="supplierEmail"
-                          type="email"
-                          value={formData.supplierEmail}
-                          onChange={(e) => setFormData({ ...formData, supplierEmail: e.target.value })}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="supplierPhone">Supplier Phone</Label>
-                        <Input
-                          id="supplierPhone"
-                          value={formData.supplierPhone}
-                          onChange={(e) => setFormData({ ...formData, supplierPhone: e.target.value })}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="supplierAddress">Supplier Address</Label>
-                        <Input
-                          id="supplierAddress"
-                          value={formData.supplierAddress}
-                          onChange={(e) => setFormData({ ...formData, supplierAddress: e.target.value })}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
+              {/* Main Purchase Order Fields - Professional Single Line Layout */}
+              <div className="bg-gray-50 p-4 rounded-lg border">
+                <div className="grid grid-cols-4 gap-6 items-start">
+                  <div className="space-y-2">
+                    <Label htmlFor="poNo" className="text-sm font-medium text-gray-700 block">
+                      PO NO
+                    </Label>
+                    <Input
+                      id="poNo"
+                      value={formData.poNo}
+                      disabled
+                      readOnly
+                      className="w-full bg-gray-100 cursor-not-allowed"
+                      title="PO Number is auto-generated and cannot be edited"
+                      placeholder="Loading..."
+                    />
+                    <p className="text-xs text-gray-500">Auto-generated</p>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="supplierName">Supplier Name *</Label>
-                      <Input
-                        id="supplierName"
-                        value={formData.supplierName}
-                        onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="supplierId" className="text-sm font-medium text-gray-700 block">
+                      Supplier
+                    </Label>
+                    <div className="flex gap-2">
+                      <Select
+                        id="supplierId"
+                        value={formData.supplierId || ''}
+                        onChange={(e) => handleSupplierChange(e.target.value)}
+                        className="flex-1"
                         required
-                        className="mt-1"
-                      />
+                      >
+                        <option value="">Select...</option>
+                        {availableSuppliers.map((supplier) => (
+                          <option key={supplier.id} value={supplier.id}>
+                            {supplier.name}
+                          </option>
+                        ))}
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open('/dashboard/suppliers', '_blank')}
+                        className="px-3 text-xs whitespace-nowrap border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400"
+                      >
+                        + Add New
+                      </Button>
                     </div>
-                    <div>
-                      <Label htmlFor="supplierEmail">Supplier Email</Label>
-                      <Input
-                        id="supplierEmail"
-                        type="email"
-                        value={formData.supplierEmail}
-                        onChange={(e) => setFormData({ ...formData, supplierEmail: e.target.value })}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="supplierPhone">Supplier Phone</Label>
-                      <Input
-                        id="supplierPhone"
-                        value={formData.supplierPhone}
-                        onChange={(e) => setFormData({ ...formData, supplierPhone: e.target.value })}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="supplierAddress">Supplier Address</Label>
-                      <Input
-                        id="supplierAddress"
-                        value={formData.supplierAddress}
-                        onChange={(e) => setFormData({ ...formData, supplierAddress: e.target.value })}
-                        className="mt-1"
-                      />
-                    </div>
+                    <p className="text-xs text-red-500">Required</p>
                   </div>
-                )}
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="orderDate" className="text-sm font-medium text-gray-700 block">
+                      Request Date
+                    </Label>
+                    <Input
+                      id="orderDate"
+                      type="date"
+                      value={formData.orderDate}
+                      onChange={(e) => setFormData({ ...formData, orderDate: e.target.value })}
+                      required
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="notes" className="text-sm font-medium text-gray-700 block">
+                      Remarks
+                    </Label>
+                    <Input
+                      id="notes"
+                      value={formData.notes || ''}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      placeholder="Enter remarks..."
+                      className="w-full"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Items ({formData.items.length}/20)</h3>
-                  <Button type="button" variant="outline" onClick={addItem} disabled={formData.items.length >= 20}>
-                    + Add Item
-                  </Button>
-                </div>
+              {/* Item Parts Section - Professional Table Layout */}
+              <div className="mt-8">
+                <div className="bg-white border rounded-lg overflow-hidden">
+                  {/* Table Header with Add New Item Button */}
+                  <div className="bg-gray-100 p-4 border-b">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-medium text-gray-800">Item Parts</h3>
+                      <Button 
+                        type="button" 
+                        onClick={addItem} 
+                        disabled={formData.items.length >= 20}
+                        className="bg-blue-500 hover:bg-blue-600 text-white border-0 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 font-medium rounded-lg"
+                      >
+                        + Add New Item
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 font-medium text-gray-700 text-sm">
+                      <div>Item Parts</div>
+                      <div>Quantity</div>
+                      <div>Remarks</div>
+                      <div className="text-center">Remove</div>
+                    </div>
+                  </div>
 
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {formData.items.map((item, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50 slide-in">
-                      <div className="flex items-start justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-700">Item {index + 1}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(index)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Table Body */}
+                  <div className="divide-y divide-gray-200">
+                    {formData.items.map((item, index) => (
+                      <div key={index} className="grid grid-cols-4 gap-4 p-4 hover:bg-gray-50 transition-colors">
                         <div>
-                          <Label className="text-xs">Part</Label>
-                          <select
+                          <Select
                             value={item.partId || ''}
                             onChange={(e) => updateItem(index, 'partId', e.target.value)}
-                            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                            className="w-full"
                           >
-                            <option value="">Select part</option>
+                            <option value="">Select...</option>
                             {availableParts.map((part) => (
                               <option key={part.id} value={part.id}>
-                                {part.partNo} - {part.description || 'No description'}
+                                {part.partNo} - {part.description?.substring(0, 25) || 'No description'}
                               </option>
                             ))}
-                          </select>
+                          </Select>
+                          <p className="text-xs text-red-500 mt-1">Required!</p>
                         </div>
+                        
                         <div>
-                          <Label className="text-xs">Part Number *</Label>
-                          <Input
-                            value={item.partNo}
-                            onChange={(e) => updateItem(index, 'partNo', e.target.value)}
-                            placeholder="Part number"
-                            required
-                            className="text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Description</Label>
-                          <Input
-                            value={item.description || ''}
-                            onChange={(e) => updateItem(index, 'description', e.target.value)}
-                            placeholder="Description"
-                            className="text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Quantity *</Label>
                           <Input
                             type="number"
                             min="1"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
                             required
-                            className="text-sm"
+                            className="w-full"
+                            placeholder="1"
                           />
                         </div>
+                        
                         <div>
-                          <Label className="text-xs">Unit Price *</Label>
                           <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={item.unitPrice}
-                            onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            required
-                            className="text-sm"
+                            value={item.description || ''}
+                            onChange={(e) => updateItem(index, 'description', e.target.value)}
+                            placeholder="Enter remarks..."
+                            className="w-full bg-green-50 border-green-200 focus:bg-green-100 focus:border-green-300"
                           />
                         </div>
-                        <div>
-                          <Label className="text-xs">Total Price</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.totalPrice.toFixed(2)}
-                            readOnly
-                            className="text-sm bg-gray-100"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">UOM</Label>
-                          <Input
-                            value={item.uom || ''}
-                            onChange={(e) => updateItem(index, 'uom', e.target.value)}
-                            placeholder="UOM"
-                            className="text-sm"
-                          />
+                        
+                        <div className="flex justify-center">
+                          <Button
+                            type="button"
+                            onClick={() => removeItem(index)}
+                            className="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 font-bold text-lg flex items-center justify-center"
+                            title="Remove item"
+                          >
+                            ×
+                          </Button>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+
+                    {/* Empty State */}
+                    {formData.items.length === 0 && (
+                      <div className="p-8 text-center text-gray-500">
+                        <div className="text-gray-400 mb-2">
+                          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                        </div>
+                        <p>No items added yet</p>
+                        <p className="text-sm">Click "Add New Item" to add items to this purchase order</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {formData.items.length === 0 && (
-                  <p className="text-center text-gray-500 py-8">Click "Add Item" to add items to this purchase order</p>
+                {/* Status Information */}
+                {formData.items.length >= 20 && (
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-sm text-yellow-700">Maximum 20 items allowed per purchase order</p>
+                  </div>
                 )}
               </div>
 
-              <div className="border-t pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="subTotal">Subtotal</Label>
-                    <Input
-                      id="subTotal"
-                      type="number"
-                      step="0.01"
-                      value={formData.subTotal.toFixed(2)}
-                      readOnly
-                      className="mt-1 bg-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="discount">Discount</Label>
-                    <Input
-                      id="discount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.discount}
-                      onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) || 0 })}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="tax">Tax</Label>
-                    <Input
-                      id="tax"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.tax}
-                      onChange={(e) => setFormData({ ...formData, tax: parseFloat(e.target.value) || 0 })}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="md:col-span-3">
-                    <Label htmlFor="totalAmount" className="text-lg font-semibold">Total Amount</Label>
-                    <Input
-                      id="totalAmount"
-                      type="number"
-                      step="0.01"
-                      value={formData.totalAmount.toFixed(2)}
-                      readOnly
-                      className="mt-1 text-lg font-bold bg-primary-50 border-primary-200"
-                    />
-                  </div>
+              {/* Action Buttons - Professional Layout */}
+              <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-200">
+                <div className="text-sm text-gray-500">
+                  {formData.items.length === 0 ? (
+                    "Please add at least one item to save the purchase order"
+                  ) : (
+                    `${formData.items.length} item${formData.items.length > 1 ? 's' : ''} added`
+                  )}
                 </div>
-              </div>
-
-              <div>
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Additional notes..."
-                  rows={3}
-                  className="mt-1"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-4 border-t">
-                <Button type="submit" disabled={loading} className="flex-1 bg-primary-500 hover:bg-primary-600">
-                  {loading ? 'Saving...' : selectedPO ? 'Update Purchase Order' : 'Create Purchase Order'}
-                </Button>
-                {selectedPO && (
-                  <Button
-                    type="button"
-                    variant="outline"
+                
+                <div className="flex gap-3">
+                  <Button 
+                    type="button" 
                     onClick={() => {
                       resetForm();
-                      setShowForm(false);
+                      setError('');
+                      setSuccess('');
                     }}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 font-medium rounded-lg border-0"
                   >
-                    Cancel
+                    Reset
                   </Button>
-                )}
+                  <Button 
+                    type="submit" 
+                    disabled={loading || formData.items.length === 0 || !formData.supplierId} 
+                    className="bg-green-600 hover:bg-green-700 text-white px-8 py-2 flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium rounded-lg border-0"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    {loading ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
               </div>
             </form>
           </CardContent>
@@ -831,7 +660,7 @@ export default function PurchaseOrdersPage() {
       <Card className="shadow-lg">
         <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <CardTitle>All {activeTab === 'purchase' ? 'Purchase' : 'Direct Purchase'} Orders ({filteredPOs.length})</CardTitle>
+            <CardTitle>All Purchase Orders ({filteredPOs.length})</CardTitle>
             <div className="flex gap-2">
               <Input
                 type="text"
@@ -840,10 +669,10 @@ export default function PurchaseOrdersPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-64"
               />
-              <select
+              <Select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="min-w-[150px]"
               >
                 <option value="">All Status</option>
                 <option value="draft">Draft</option>
@@ -851,7 +680,7 @@ export default function PurchaseOrdersPage() {
                 <option value="approved">Approved</option>
                 <option value="received">Received</option>
                 <option value="cancelled">Cancelled</option>
-              </select>
+              </Select>
             </div>
           </div>
         </CardHeader>
@@ -878,7 +707,7 @@ export default function PurchaseOrdersPage() {
                           {po.status.toUpperCase()}
                         </span>
                         <span className="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full">
-                          {po.type === 'purchase' ? 'Purchase Order' : 'Direct Purchase'}
+                          Purchase Order
                         </span>
                       </div>
                       

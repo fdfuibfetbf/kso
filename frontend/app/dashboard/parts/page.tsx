@@ -217,7 +217,7 @@ export default function PartsPage() {
       </div>
 
       {/* Middle Panel - Models */}
-      <div className="lg:col-span-2 overflow-y-auto scroll-smooth order-3 lg:order-2">
+      <div className="lg:col-span-4 overflow-y-auto scroll-smooth order-3 lg:order-2">
         <ModelsPanel 
           partId={selectedPart?.id} 
           partName={selectedPart?.partNo || selectedPart?.description || ''}
@@ -226,13 +226,13 @@ export default function PartsPage() {
       </div>
 
       {/* Right Panel - Parts/Kits List with Tabs */}
-      <div className="lg:col-span-7 overflow-y-auto scroll-smooth order-2 lg:order-3">
+      <div className="lg:col-span-5 overflow-y-auto scroll-smooth order-2 lg:order-3">
         <Card className="h-full bg-white border border-gray-200 shadow-medium rounded-lg overflow-hidden flex flex-col">
           {/* Tabs */}
-          <div className="flex border-b border-gray-200 bg-white">
+          <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
             <button
               onClick={() => setActiveListTab('parts')}
-              className={`flex-1 px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+              className={`flex-1 px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-all duration-200 ${
                 activeListTab === 'parts'
                   ? 'text-primary-600 border-b-2 border-primary-500 bg-primary-50'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -242,7 +242,7 @@ export default function PartsPage() {
             </button>
             <button
               onClick={() => setActiveListTab('kits')}
-              className={`flex-1 px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+              className={`flex-1 px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-all duration-200 ${
                 activeListTab === 'kits'
                   ? 'text-primary-600 border-b-2 border-primary-500 bg-primary-50'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -316,7 +316,7 @@ export default function PartsPage() {
                       placeholder="Search kits..."
                       value={kitSearchTerm}
                       onChange={(e) => setKitSearchTerm(e.target.value)}
-                      className="w-full pl-10 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      className="pl-10 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                     />
                   </div>
                 </div>

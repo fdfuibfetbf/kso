@@ -60,7 +60,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
-                {error}
+                {typeof error === 'object' ? JSON.stringify(error) : error}
               </div>
             )}
             <div className="space-y-2">
