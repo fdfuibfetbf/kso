@@ -1,17 +1,4 @@
 -- CreateTable
-CREATE TABLE "Customer" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "name" TEXT NOT NULL,
-    "email" TEXT,
-    "phone" TEXT,
-    "address" TEXT,
-    "cnic" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'A',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
-);
-
--- CreateTable
 CREATE TABLE "InventoryAdjustment" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "adjustmentNo" TEXT,
@@ -78,15 +65,6 @@ CREATE INDEX "SalesInvoice_customerName_idx" ON "SalesInvoice"("customerName");
 CREATE INDEX "SalesInvoice_customerId_idx" ON "SalesInvoice"("customerId");
 PRAGMA foreign_keys=ON;
 PRAGMA defer_foreign_keys=OFF;
-
--- CreateIndex
-CREATE INDEX "Customer_name_idx" ON "Customer"("name");
-
--- CreateIndex
-CREATE INDEX "Customer_status_idx" ON "Customer"("status");
-
--- CreateIndex
-CREATE INDEX "Customer_phone_idx" ON "Customer"("phone");
 
 -- CreateIndex
 CREATE INDEX "InventoryAdjustment_date_idx" ON "InventoryAdjustment"("date");

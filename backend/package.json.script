@@ -1,1 +1,0 @@
-"seed:parts": "ts-node src/scripts/seed-parts-management.ts"
