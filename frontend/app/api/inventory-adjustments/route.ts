@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
           total: total || 0,
           date: date ? new Date(date) : new Date(),
           notes: notes || null,
-          createdBy: user.id || null,
+          createdBy: user.userId || null,
           items: {
             create: itemsWithNewQuantity.map((item: any) => ({
               partId: item.partId || null,

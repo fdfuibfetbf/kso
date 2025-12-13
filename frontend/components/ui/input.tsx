@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   size?: 'sm' | 'default' | 'lg';
   variant?: 'default' | 'filled' | 'outline';
   fullWidth?: boolean;

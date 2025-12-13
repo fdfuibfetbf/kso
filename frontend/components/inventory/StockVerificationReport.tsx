@@ -173,7 +173,7 @@ export default function StockVerificationReport() {
           physicalQty,
           variance,
           variancePercentage,
-          status,
+          status: status as 'pending' | 'verified' | 'discrepancy',
           verifiedAt: physicalQty !== null ? new Date().toISOString() : undefined,
         };
       }

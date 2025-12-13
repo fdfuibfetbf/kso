@@ -374,7 +374,7 @@ export default function PartsListPage() {
     if (selectedParts.size === parts.length && parts.length > 0) {
       setSelectedParts(new Set());
     } else {
-      setSelectedParts(new Set(parts.map(p => p.id)));
+      setSelectedParts(new Set(parts.map(p => p.id).filter((id): id is string => id !== undefined)));
     }
   };
 
@@ -384,7 +384,7 @@ export default function PartsListPage() {
       setSelectedParts(new Set());
     } else {
       // Otherwise, select all
-      setSelectedParts(new Set(parts.map(p => p.id)));
+      setSelectedParts(new Set(parts.map(p => p.id).filter((id): id is string => id !== undefined)));
     }
   };
 
@@ -399,7 +399,7 @@ export default function PartsListPage() {
       return;
     }
 
-    const selectedPartsData = parts.filter(p => selectedParts.has(p.id));
+    const selectedPartsData = parts.filter(p => p.id && selectedParts.has(p.id));
     
     // CSV Headers
     const headers = [
@@ -460,7 +460,7 @@ export default function PartsListPage() {
       return;
     }
 
-    const selectedPartsData = parts.filter(p => selectedParts.has(p.id));
+    const selectedPartsData = parts.filter(p => p.id && selectedParts.has(p.id));
     
     // Create print window content
     const printWindow = window.open('', '_blank');
@@ -1016,14 +1016,18 @@ export default function PartsListPage() {
                       <TableRow
                         key={part.id}
                         className={`border-b border-gray-100 hover:bg-primary-50/50 transition-all duration-200 ease-in-out hover:shadow-sm ${
-                          selectedParts.has(part.id) ? 'bg-primary-50/30' : ''
+                          part.id && selectedParts.has(part.id) ? 'bg-primary-50/30' : ''
                         }`}
                       >
                         <TableCell className="text-center py-2 px-2">
                           <input
                             type="checkbox"
-                            checked={selectedParts.has(part.id)}
-                            onChange={() => handleSelectPart(part.id)}
+                            checked={part.id ? selectedParts.has(part.id) : false}
+                            onChange={() => {
+                              if (part.id) {
+                                handleSelectPart(part.id);
+                              }
+                            }}
                             className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
                           />
                         </TableCell>

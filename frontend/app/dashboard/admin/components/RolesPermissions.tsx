@@ -143,7 +143,7 @@ export default function RolesPermissions() {
     setFormData(prev => ({
       ...prev,
       permissions: checked
-        ? [...new Set([...prev.permissions, ...modulePerms])]
+        ? Array.from(new Set([...prev.permissions, ...modulePerms]))
         : prev.permissions.filter(p => !modulePerms.includes(p)),
     }));
   };

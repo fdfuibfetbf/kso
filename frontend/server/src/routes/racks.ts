@@ -256,17 +256,9 @@ router.delete('/:id', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Rack not found' });
     }
 
-    // Use transaction to delete everything in order
-    await prisma.$transaction(async (tx) => {
-      // First, delete all item inventories that reference this rack
-      await tx.itemInventory.deleteMany({
-        where: { rackId: req.params.id },
-      });
-
-      // Then delete the rack - shelves will cascade delete automatically
-      await tx.rack.delete({
-        where: { id: req.params.id },
-      });
+    // Delete the rack - shelves will cascade delete automatically
+    await prisma.rack.delete({
+      where: { id: req.params.id },
     });
 
     res.json({ message: 'Rack deleted successfully' });

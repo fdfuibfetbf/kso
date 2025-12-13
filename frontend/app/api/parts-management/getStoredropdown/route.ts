@@ -40,9 +40,9 @@ export async function GET(req: NextRequest) {
     if (store_type_id) {
       // For now, just return filtered results based on store type
       const storeTypeMap: any = {
-        '1': formattedStores.filter(s => s.name.toLowerCase().includes('warehouse')),
-        '2': formattedStores.filter(s => s.name.toLowerCase().includes('store')),
-        '3': formattedStores.filter(s => s.name.toLowerCase().includes('service'))
+        '1': formattedStores.filter(s => s.name?.toLowerCase().includes('warehouse')),
+        '2': formattedStores.filter(s => s.name?.toLowerCase().includes('store')),
+        '3': formattedStores.filter(s => s.name?.toLowerCase().includes('service'))
       };
       
       formattedStores = storeTypeMap[store_type_id] || formattedStores;

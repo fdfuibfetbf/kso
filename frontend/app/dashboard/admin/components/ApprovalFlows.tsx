@@ -113,14 +113,22 @@ export default function ApprovalFlows() {
     { id: '4', flowName: 'Purchase Order Approval', documentType: 'Purchase Order', documentNo: 'PO-2024-002', requestedBy: 'Sarah Wilson', requestedAt: '2024-12-08 16:20', currentStep: 3, totalSteps: 3, status: 'approved', amount: 120000 },
   ]);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    module: string;
+    trigger: string;
+    condition: string;
+    steps: ApprovalStep[];
+    status: 'active' | 'inactive';
+  }>({
     name: '',
     description: '',
     module: 'purchase',
     trigger: 'create',
     condition: '',
-    steps: [{ id: '1', order: 1, role: 'manager', action: 'approve' as const, isRequired: true }],
-    status: 'active' as const,
+    steps: [{ id: '1', order: 1, role: 'manager', action: 'approve', isRequired: true }],
+    status: 'active',
   });
 
   const moduleOptions = [

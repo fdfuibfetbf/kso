@@ -6,11 +6,33 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+// Check if we're in a build context or actually running in Vercel
+// During Next.js build, we're not actually in a serverless environment yet
+function isBuildTime(): boolean {
+  // Check for Next.js build phase indicators
+  if (process.env.NEXT_PHASE) {
+    return process.env.NEXT_PHASE.includes('build');
+  }
+  
+  // Check if we're actually in Vercel runtime (not build)
+  // Vercel sets these environment variables at runtime, not during build
+  const isVercelRuntime = process.env.VERCEL === '1' && 
+                          (process.env.VERCEL_ENV === 'production' || 
+                           process.env.VERCEL_ENV === 'preview' || 
+                           process.env.VERCEL_ENV === 'development');
+  
+  // If we're building locally or not in Vercel runtime, allow SQLite
+  return !isVercelRuntime;
+}
+
 // Function to normalize and fix DATABASE_URL
 // ALWAYS use the backend database in development
 function getDatabaseUrl(): string {
-  // In production/Vercel, DATABASE_URL must be set as environment variable
-  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  const isBuild = isBuildTime();
+  
+  // In Vercel runtime (not build), DATABASE_URL must be set as environment variable
+  // Only check this if we're actually running in Vercel, not during build
+  if (process.env.VERCEL === '1' && !isBuild) {
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
       throw new Error('DATABASE_URL environment variable is required in production. Please set it in Vercel environment variables.');
@@ -23,10 +45,11 @@ function getDatabaseUrl(): string {
     return databaseUrl.replace(/^["']|["']$/g, '').trim();
   }
   
-  // In development, ALWAYS use the backend database (single source of truth)
+  // In development or build time, ALWAYS use the backend database (single source of truth)
   const backendDbPath = path.resolve(process.cwd(), '..', 'backend', 'prisma', 'dev.db');
   
-  if (!existsSync(backendDbPath)) {
+  // During build, don't check if file exists (it might not be accessible)
+  if (!isBuild && !existsSync(backendDbPath)) {
     throw new Error(`Backend database not found at: ${backendDbPath}. Please ensure the backend database exists.`);
   }
   
@@ -36,7 +59,7 @@ function getDatabaseUrl(): string {
   process.env.DATABASE_URL = databaseUrl;
   
   // Log in development
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === 'development' && !isBuild) {
     console.log('[Prisma] Using shared backend database:', backendDbPath.replace(/.*[\\\/]/, '.../'));
   }
   
@@ -45,9 +68,10 @@ function getDatabaseUrl(): string {
 
 // Get the normalized database URL
 const databaseUrl = getDatabaseUrl();
+const isBuild = isBuildTime();
 
-// Log the final DATABASE_URL (masked for security)
-if (process.env.NODE_ENV === 'development') {
+// Log the final DATABASE_URL (masked for security) - skip during build
+if (process.env.NODE_ENV === 'development' && !isBuild) {
   const maskedUrl = databaseUrl.replace(/file:.*\//, 'file:.../');
   console.log('[Prisma] DATABASE_URL:', maskedUrl);
 }
@@ -70,7 +94,7 @@ if (prismaInstance && typeof (prismaInstance as any).brand === 'undefined') {
 }
 
 export const prisma = prismaInstance ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  log: process.env.NODE_ENV === 'development' && !isBuild ? ['error', 'warn'] : ['error'],
   datasources: {
     db: {
       url: databaseUrl,
@@ -80,12 +104,15 @@ export const prisma = prismaInstance ?? new PrismaClient({
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// Handle connection errors gracefully in serverless
-if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-  // In production, don't connect eagerly - let each request handle connection
-  prisma.$connect().catch((error) => {
-    console.error('[Prisma] Connection error:', error);
-    // Don't throw - let individual requests handle errors
-  });
+// Don't connect during build time - connections will happen at runtime
+if (!isBuild) {
+  // Handle connection errors gracefully in serverless
+  if (process.env.VERCEL === '1' || (process.env.NODE_ENV === 'production' && process.env.VERCEL === '1')) {
+    // In production, don't connect eagerly - let each request handle connection
+    prisma.$connect().catch((error) => {
+      console.error('[Prisma] Connection error:', error);
+      // Don't throw - let individual requests handle errors
+    });
+  }
 }
 

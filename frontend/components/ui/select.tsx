@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 export interface SelectProps
-  extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
   size?: 'sm' | 'default' | 'lg';
   variant?: 'default' | 'filled' | 'outline';
   fullWidth?: boolean;

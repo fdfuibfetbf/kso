@@ -123,8 +123,8 @@ export default function MarginControl() {
 
       setItems(marginItems);
 
-      const uniqueCategories = [...new Set(parts.map((p: any) => p.mainCategory).filter(Boolean))] as string[];
-      const uniqueBrands = [...new Set(parts.map((p: any) => p.brand).filter(Boolean))] as string[];
+      const uniqueCategories = Array.from(new Set(parts.map((p: any) => p.mainCategory).filter(Boolean))) as string[];
+      const uniqueBrands = Array.from(new Set(parts.map((p: any) => p.brand).filter(Boolean))) as string[];
       setCategories(uniqueCategories);
       setBrands(uniqueBrands);
     } catch (err) {

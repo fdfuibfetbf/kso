@@ -289,7 +289,7 @@ export default function ModelsTable({ refreshTrigger = 0 }: ModelsTableProps) {
                       {editingRow === model.id ? (
                         <Input
                           value={editData.modelNo || ''}
-                          onChange={(e) => setEditData(prev => ({ ...prev, modelNo: e.target.value }))}
+                          onChange={(e) => setEditData((prev: any) => ({ ...prev, modelNo: e.target.value }))}
                           className="h-8 text-sm"
                           placeholder="Model No"
                         />
@@ -315,7 +315,7 @@ export default function ModelsTable({ refreshTrigger = 0 }: ModelsTableProps) {
                           type="number"
                           min="1"
                           value={editData.qtyUsed || ''}
-                          onChange={(e) => setEditData(prev => ({ ...prev, qtyUsed: e.target.value }))}
+                          onChange={(e) => setEditData((prev: any) => ({ ...prev, qtyUsed: e.target.value }))}
                           className="h-8 text-sm w-20"
                           placeholder="Qty"
                         />

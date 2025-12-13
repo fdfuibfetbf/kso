@@ -136,9 +136,9 @@ export default function CostPriceReporting() {
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const avgCostPerUnit = totalInventoryCost / totalQuantity;
 
-  const locations = [...new Set(items.map(item => item.location))];
-  const origins = [...new Set(items.map(item => item.origin))];
-  const categories = [...new Set(items.map(item => item.category))];
+  const locations = Array.from(new Set(items.map(item => item.location)));
+  const origins = Array.from(new Set(items.map(item => item.origin)));
+  const categories = Array.from(new Set(items.map(item => item.category)));
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PK', {

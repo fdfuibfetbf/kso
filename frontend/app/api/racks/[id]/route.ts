@@ -144,17 +144,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Rack not found' }, { status: 404 });
     }
 
-    // Use transaction to delete everything in order
-    await prisma.$transaction(async (tx) => {
-      // First, delete all item inventories that reference this rack
-      await tx.itemInventory.deleteMany({
-        where: { rackId: params.id },
-      });
-
-      // Then delete the rack - shelves will cascade delete automatically
-      await tx.rack.delete({
-        where: { id: params.id },
-      });
+    // Delete the rack - shelves will cascade delete automatically
+    await prisma.rack.delete({
+      where: { id: params.id },
     });
 
     return NextResponse.json({ message: 'Rack deleted successfully' });

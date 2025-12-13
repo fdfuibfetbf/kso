@@ -34,7 +34,7 @@ const salesInvoiceSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const authResult = await verifyToken(request);
-    if (!authResult.success) {
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const authResult = await verifyToken(request);
-    if (!authResult.success) {
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -91,7 +91,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already exists' });
     }
     
-    if (error.message?.includes('DATABASE_URL') || error.message?.includes('connection')) {
+    if ((error as any)?.message?.includes('DATABASE_URL') || (error as any)?.message?.includes('connection')) {
       return res.status(500).json({ 
         error: 'Database connection error. Please check your database configuration.' 
       });
@@ -100,8 +100,8 @@ router.post('/register', async (req, res) => {
     // Log full error for debugging
     console.error('Full error details:', JSON.stringify(error, null, 2));
     res.status(500).json({ 
-      error: error.message || 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: (error as any)?.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? (error as any)?.message : undefined
     });
   }
 });
@@ -170,7 +170,7 @@ router.post('/login', async (req, res) => {
     console.error('Login error:', error);
     
     // Provide more specific error messages
-    if (error.message?.includes('DATABASE_URL') || error.message?.includes('connection')) {
+    if ((error as any)?.message?.includes('DATABASE_URL') || (error as any)?.message?.includes('connection')) {
       return res.status(500).json({ 
         error: 'Database connection failed',
         message: process.env.VERCEL 
@@ -180,8 +180,8 @@ router.post('/login', async (req, res) => {
     }
     
     res.status(500).json({ 
-      error: error.message || 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: (error as any)?.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? (error as any)?.message : undefined
     });
   }
 });
@@ -221,7 +221,7 @@ router.get('/me', verifyToken, async (req: AuthRequest, res) => {
     console.error('Get user error:', error);
     
     // Provide more specific error messages
-    if (error.message?.includes('DATABASE_URL') || error.message?.includes('connection')) {
+    if ((error as any)?.message?.includes('DATABASE_URL') || (error as any)?.message?.includes('connection')) {
       return res.status(500).json({ 
         error: 'Database connection failed',
         message: process.env.VERCEL 
@@ -231,8 +231,8 @@ router.get('/me', verifyToken, async (req: AuthRequest, res) => {
     }
     
     res.status(500).json({ 
-      error: error.message || 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: (error as any)?.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? (error as any)?.message : undefined
     });
   }
 });

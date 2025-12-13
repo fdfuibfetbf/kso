@@ -95,7 +95,7 @@ export default function PriceLevels() {
 
       setItems(priceItems);
       
-      const uniqueBrands = [...new Set(parts.map((p: any) => p.brand).filter(Boolean))] as string[];
+      const uniqueBrands = Array.from(new Set(parts.map((p: any) => p.brand).filter(Boolean))) as string[];
       setBrands(uniqueBrands);
     } catch (err) {
       console.error('Failed to load items:', err);
