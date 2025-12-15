@@ -432,19 +432,24 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
     }
   };
 
-  const findSubCategoryId = async (subCategoryName: string, parentId: string) => {
+  const findSubCategoryId = async (subCategoryName: string, parentId: string): Promise<string | null> => {
     try {
       const response = await api.get(`/categories?type=sub&parentId=${parentId}&status=A`);
-      const subCategory = (response.data.categories || []).find(
-        (cat: any) => cat.name === subCategoryName
+      const categories = response.data?.categories || response.data || [];
+      const subCategory = categories.find(
+        (cat: any) => cat.name?.toLowerCase().trim() === subCategoryName.toLowerCase().trim()
       );
-      if (subCategory) {
+      if (subCategory && subCategory.id) {
         setSelectedSubCategoryId(subCategory.id);
+        return subCategory.id;
       } else {
         setSelectedSubCategoryId(null);
+        return null;
       }
     } catch (error) {
       console.error('Failed to find sub-category ID:', error);
+      setSelectedSubCategoryId(null);
+      return null;
     }
   };
 
@@ -523,33 +528,66 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
 
   const handleAddSubCategory = async (subCategoryName: string) => {
     if (!selectedMainCategoryId) {
+      showToast('Please select a category first', 'error');
       throw new Error('Please select a category first');
     }
     try {
-      await api.post('/categories', {
+      const response = await api.post('/categories', {
         name: subCategoryName,
         type: 'sub',
         parentId: selectedMainCategoryId,
         status: 'A',
       });
       setSubCategoryOptions((prev) => [...prev.filter((sc) => sc !== subCategoryName), subCategoryName].sort());
+      // Set the new sub-category ID so Application field can be enabled
+      // Handle different possible response structures
+      let categoryId = response.data?.category?.id || response.data?.id || response.data?.data?.id;
+      
+      if (!categoryId) {
+        // If ID not in response, wait a bit and try to find it
+        await new Promise(resolve => setTimeout(resolve, 200));
+        categoryId = await findSubCategoryId(subCategoryName, selectedMainCategoryId);
+      }
+      
+      if (categoryId) {
+        setSelectedSubCategoryId(categoryId);
+      } else {
+        console.warn('Sub-category created but ID not found. It may be available shortly.');
+        // Try one more time after a longer delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        categoryId = await findSubCategoryId(subCategoryName, selectedMainCategoryId);
+        if (categoryId) {
+          setSelectedSubCategoryId(categoryId);
+        }
+      }
+      // Show success notification
+      showToast(`Sub Category "${subCategoryName}" added successfully`, 'success');
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to add subcategory');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to add subcategory';
+      showToast(errorMessage, 'error');
+      throw new Error(errorMessage);
     }
   };
 
   const handleAddApplication = async (applicationName: string) => {
-    if (!selectedSubCategoryId) {
-      throw new Error('Please select a sub-category first before adding an application');
-    }
+    // Add the new application to the options list
+    // The value will be saved when the part is saved (same as master part number and part number)
     try {
-      await api.post('/applications', { 
-        name: applicationName,
-        subCategoryId: selectedSubCategoryId,
+      const trimmedName = applicationName.trim();
+      if (!trimmedName) {
+        showToast('Application name cannot be empty', 'error');
+        throw new Error('Application name cannot be empty');
+      }
+      
+      setApplicationOptions((prev) => {
+        const updated = [...prev.filter((a) => a !== trimmedName), trimmedName].sort();
+        return updated;
       });
-      setApplicationOptions((prev) => [...prev.filter((a) => a !== applicationName), applicationName].sort());
+      // Show success notification
+      showToast(`Application "${trimmedName}" added successfully`, 'success');
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to add application');
+      showToast('Failed to add application', 'error');
+      throw new Error('Failed to add application');
     }
   };
 
@@ -931,8 +969,8 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                 onChange={(value) => handleChange('application', value)}
                 onAddNew={handleAddApplication}
                 options={applicationOptions}
-                placeholder={selectedSubCategoryId ? "Type to search or press Enter to add new" : "Please select a sub-category first"}
-                disabled={!selectedSubCategoryId || !formData.subCategory || formData.subCategory.trim() === ''}
+                placeholder={formData.subCategory && formData.subCategory.trim() !== '' ? "Type to search or press Enter to add new" : "Please select a sub-category first"}
+                disabled={!formData.subCategory || formData.subCategory.trim() === ''}
               />
             </div>
           </div>
@@ -973,7 +1011,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                   value={formData.weight || ''}
                   onChange={(e) => handleChange('weight', e.target.value)}
                   className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="LxHxW"
+                  placeholder=""
                 />
               </div>
             </div>
@@ -1126,7 +1164,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                   value={formData.size || ''}
                   onChange={(e) => handleChange('size', e.target.value)}
                   className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="Enter size"
+                  placeholder="LxHxW"
                 />
               </div>
             </div>
