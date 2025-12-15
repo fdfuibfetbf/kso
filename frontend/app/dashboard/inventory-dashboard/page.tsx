@@ -499,7 +499,7 @@ export default function InventoryDashboard() {
                     />
                     <YAxis 
                       tick={{ fontSize: 11, fill: '#64748b' }}
-                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                      tickFormatter={(value) => `Rs ${(value / 1000).toFixed(0)}k`}
                     />
                     <Tooltip 
                       formatter={(value: number, name: string) => [formatCurrency(value), name === 'value' ? 'Value' : name]}
@@ -598,7 +598,7 @@ export default function InventoryDashboard() {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={stats.brands} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(value) => `Rs ${(value / 1000).toFixed(0)}k`} />
                     <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#64748b' }} width={100} />
                     <Tooltip 
                       formatter={(value: number) => formatCurrency(value)}
@@ -631,7 +631,7 @@ export default function InventoryDashboard() {
                     <XAxis 
                       type="number" 
                       tick={{ fontSize: 11, fill: '#64748b' }}
-                      tickFormatter={(value) => `$${value.toLocaleString()}`}
+                      tickFormatter={(value) => `Rs ${value.toLocaleString()}`}
                     />
                     <YAxis 
                       dataKey="partNo" 

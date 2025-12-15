@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
 import { verifyToken } from '@/lib/middleware/auth';
 
 // Disable caching for this route
@@ -17,19 +16,22 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const part = await prisma.part.findUnique({
-      where: { id: params.id },
-      include: {
-        models: true,
-        stock: true,
+    const backendUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/parts/${params.id}`;
+
+    const response = await fetch(backendUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: request.headers.get('Authorization') || '',
+        'Content-Type': 'application/json',
       },
     });
 
-    if (!part) {
-      return NextResponse.json({ error: 'Part not found' }, { status: 404 });
+    const data = await response.json();
+    if (!response.ok) {
+      return NextResponse.json(data, { status: response.status });
     }
 
-    return NextResponse.json({ part });
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error('Part fetch error:', error);
     return NextResponse.json(
@@ -58,54 +60,23 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Extract models from body
-    const { models, ...partData } = body;
+    const backendUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/parts/${params.id}`;
 
-    // Check if part exists
-    const existingPart = await prisma.part.findUnique({
-      where: { id: params.id },
+    const response = await fetch(backendUrl, {
+      method: 'PUT',
+      headers: {
+        Authorization: request.headers.get('Authorization') || '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
     });
 
-    if (!existingPart) {
-      return NextResponse.json({ error: 'Part not found' }, { status: 404 });
+    const data = await response.json();
+    if (!response.ok) {
+      return NextResponse.json(data, { status: response.status });
     }
 
-    // Update part in a transaction
-    const part = await prisma.$transaction(async (tx) => {
-      // Update the part
-      const updatedPart = await tx.part.update({
-        where: { id: params.id },
-        data: partData,
-      });
-
-      // Delete existing models
-      await tx.partModel.deleteMany({
-        where: { partId: params.id },
-      });
-
-      // Create new models if provided
-      if (models && models.length > 0) {
-        await tx.partModel.createMany({
-          data: models.map((model: any) => ({
-            partId: params.id,
-            modelNo: model.modelNo,
-            qtyUsed: model.qtyUsed,
-            tab: model.tab || 'P1',
-          })),
-        });
-      }
-
-      // Return the updated part with models
-      return await tx.part.findUnique({
-        where: { id: params.id },
-        include: {
-          models: true,
-          stock: true,
-        },
-      });
-    });
-
-    return NextResponse.json({ part });
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error('Part update error:', error);
     return NextResponse.json(
@@ -126,21 +97,22 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if part exists
-    const existingPart = await prisma.part.findUnique({
-      where: { id: params.id },
+    const backendUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/parts/${params.id}`;
+
+    const response = await fetch(backendUrl, {
+      method: 'DELETE',
+      headers: {
+        Authorization: request.headers.get('Authorization') || '',
+        'Content-Type': 'application/json',
+      },
     });
 
-    if (!existingPart) {
-      return NextResponse.json({ error: 'Part not found' }, { status: 404 });
+    const data = await response.json();
+    if (!response.ok) {
+      return NextResponse.json(data, { status: response.status });
     }
 
-    // Delete the part (models will be deleted automatically due to cascade)
-    await prisma.part.delete({
-      where: { id: params.id },
-    });
-
-    return NextResponse.json({ message: 'Part deleted successfully' });
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error('Part deletion error:', error);
     return NextResponse.json(

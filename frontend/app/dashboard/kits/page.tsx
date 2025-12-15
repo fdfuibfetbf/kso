@@ -280,12 +280,12 @@ export default function KitsPage() {
                         </span>
                         {kit.totalCost && (
                           <span>
-                            <strong>Total Cost:</strong> ${kit.totalCost.toFixed(2)}
+                            <strong>Total Cost:</strong> Rs {kit.totalCost.toFixed(2)}
                           </span>
                         )}
                         {kit.price && (
                           <span>
-                            <strong>Price:</strong> ${kit.price.toFixed(2)}
+                            <strong>Price:</strong> Rs {kit.price.toFixed(2)}
                           </span>
                         )}
                       </div>
@@ -299,7 +299,7 @@ export default function KitsPage() {
                                   {item.part?.partNo || 'Unknown Part'}
                                 </div>
                                 <div className="text-gray-600">
-                                  Qty: {item.quantity} × ${item.part?.cost || 0} = ${((item.part?.cost || 0) * item.quantity).toFixed(2)}
+                                  Qty: {item.quantity} × Rs {item.part?.cost || 0} = Rs {((item.part?.cost || 0) * item.quantity).toFixed(2)}
                                 </div>
                               </div>
                             ))}

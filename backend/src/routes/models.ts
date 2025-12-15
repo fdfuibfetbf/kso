@@ -95,12 +95,21 @@ router.get('/', async (req: AuthRequest, res) => {
 // Get models for a part
 router.get('/part/:partId', async (req: AuthRequest, res) => {
   try {
+    const partId = req.params.partId;
+    console.log('Backend: Fetching models for part:', partId);
+    
     const models = await prisma.partModel.findMany({
-      where: { partId: req.params.partId },
+      where: { partId: partId },
       orderBy: [
         { tab: 'asc' },
         { modelNo: 'asc' },
       ],
+    });
+
+    console.log('Backend: Found models for part:', {
+      partId,
+      count: models.length,
+      models: models.map(m => ({ id: m.id, modelNo: m.modelNo, qtyUsed: m.qtyUsed }))
     });
 
     res.json({ models });

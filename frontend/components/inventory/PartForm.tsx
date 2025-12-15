@@ -719,20 +719,24 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
         models: modelsToSave,
       };
       
-      // Debug log to verify models are being sent
-      console.log('Saving part with models:', {
-        partId: part?.id,
-        modelsCount: modelsToSave.length,
-        models: modelsToSave
-      });
+            // Debug log to verify models are being sent
+            console.log('PartForm: Saving part with models:', {
+              partId: part?.id,
+              modelsCount: modelsToSave.length,
+              models: modelsToSave,
+              modelsProp: models,
+              modelsPropLength: models?.length
+            });
 
-      if (part?.id) {
-        // Update
-        const response = await api.put(`/parts/${part.id}`, cleanedData);
-        const savedPart = response.data.part;
-        console.log('PartForm: Saved part response:', savedPart);
-        console.log('PartForm: Models in saved part:', savedPart?.models);
-        onSave(savedPart);
+            if (part?.id) {
+              // Update
+              const response = await api.put(`/parts/${part.id}`, cleanedData);
+              const savedPart = response.data.part;
+              console.log('PartForm: Saved part response:', savedPart);
+              console.log('PartForm: Models in saved part:', savedPart?.models);
+              console.log('PartForm: Models array length:', savedPart?.models?.length);
+              console.log('PartForm: Models array details:', JSON.stringify(savedPart?.models, null, 2));
+              onSave(savedPart);
         // Show success message with model count
         const savedModelsCount = savedPart?.models?.length || 0;
         if (savedModelsCount > 0) {

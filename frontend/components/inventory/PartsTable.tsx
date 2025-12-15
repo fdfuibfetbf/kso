@@ -147,12 +147,12 @@ export default function PartsTable({ onSelectPart, selectedPartId, refreshTrigge
                     </TableCell>
                     <TableCell className="text-gray-700 py-1 px-2 text-right font-medium">
                       {part.cost !== undefined && part.cost !== null
-                        ? `$${part.cost.toFixed(2)}`
+                        ? `Rs ${part.cost.toFixed(2)}`
                         : '-'}
                     </TableCell>
                     <TableCell className="text-gray-700 py-1 px-2 text-right font-medium">
                       {part.priceA !== undefined && part.priceA !== null
-                        ? `$${part.priceA.toFixed(2)}`
+                        ? `Rs ${part.priceA.toFixed(2)}`
                         : '-'}
                     </TableCell>
                     <TableCell className="text-gray-700 py-1 px-2 text-right font-medium">

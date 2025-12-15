@@ -82,11 +82,18 @@ export default function PartsPage() {
       // Fetch full part details with models
       const response = await api.get(`/parts/${part.id}`);
       const fetchedPart = response.data.part;
+      console.log('PartsPage: handleSelectPart - Fetched part:', fetchedPart);
+      console.log('PartsPage: handleSelectPart - Models in fetched part:', fetchedPart?.models);
+      console.log('PartsPage: handleSelectPart - Models array length:', fetchedPart?.models?.length);
+      console.log('PartsPage: handleSelectPart - Full models array:', JSON.stringify(fetchedPart?.models, null, 2));
+      
+      // Set selectedPart first - this will trigger the useEffect to sync models
       setSelectedPart(fetchedPart);
       setActiveFormTab('part');
       setSelectedKit(null);
       
-      // Immediately sync models from the fetched part
+      // Also immediately sync models from the fetched part as a backup
+      // The useEffect should also handle this, but we do it here to ensure it happens
       if (fetchedPart?.models && Array.isArray(fetchedPart.models) && fetchedPart.models.length > 0) {
         const modelsWithPartId = fetchedPart.models.map((model: any) => ({
           id: model.id || '',
@@ -95,8 +102,10 @@ export default function PartsPage() {
           qtyUsed: model.qtyUsed || 1,
           tab: model.tab || 'P1'
         }));
+        console.log('PartsPage: handleSelectPart - Setting currentModels to:', modelsWithPartId);
         setCurrentModels(modelsWithPartId);
       } else {
+        console.log('PartsPage: handleSelectPart - No models found, setting empty model');
         setCurrentModels([
           { id: '', partId: fetchedPart.id, modelNo: '', qtyUsed: 1, tab: 'P1' }
         ]);
@@ -109,9 +118,10 @@ export default function PartsPage() {
     }
   };
 
-  const handleSavePart = (part: Part) => {
+  const handleSavePart = async (part: Part) => {
     console.log('PartsPage: handleSavePart called with part:', part);
     console.log('PartsPage: Models in saved part:', part?.models);
+    console.log('PartsPage: Models array length:', part?.models?.length);
     
     // Update selectedPart with the saved part (which includes models)
     setSelectedPart(part);
@@ -128,19 +138,50 @@ export default function PartsPage() {
       console.log('PartsPage: Setting currentModels to:', modelsWithPartId);
       setCurrentModels(modelsWithPartId);
     } else {
-      // If no models in response, check if we sent models - if so, keep currentModels
-      // Otherwise reset to empty
-      console.log('PartsPage: No models in saved part response');
-      // Don't reset if user just entered models - they might not be in response yet
-      // Only reset if we're sure there should be no models
+      // If no models in response, fetch them from the API
+      console.log('PartsPage: No models in saved part response, fetching from API...');
+      try {
+        const response = await api.get(`/parts/${part.id}`);
+        const fetchedPart = response.data.part;
+        console.log('PartsPage: Fetched part with models:', {
+          partId: fetchedPart?.id,
+          modelsCount: fetchedPart?.models?.length || 0,
+          models: fetchedPart?.models
+        });
+        
+        if (fetchedPart?.models && Array.isArray(fetchedPart.models) && fetchedPart.models.length > 0) {
+          const modelsWithPartId = fetchedPart.models.map((model: any) => ({
+            id: model.id || '',
+            partId: fetchedPart.id,
+            modelNo: model.modelNo || '',
+            qtyUsed: model.qtyUsed || 1,
+            tab: model.tab || 'P1'
+          }));
+          console.log('PartsPage: Setting currentModels from fetched part:', modelsWithPartId);
+          setCurrentModels(modelsWithPartId);
+          // Also update selectedPart with the fetched data
+          setSelectedPart(fetchedPart);
+        } else {
+          console.log('PartsPage: No models found even after fetching');
+        }
+      } catch (error) {
+        console.error('PartsPage: Failed to fetch models after save:', error);
+      }
     }
     
     // Trigger refresh of parts table
     setRefreshTrigger(prev => prev + 1);
   };
 
-  // Reset models when selected part changes
+  // Sync models when selected part changes or when models are updated
   useEffect(() => {
+    console.log('PartsPage: useEffect triggered - selectedPart:', {
+      id: selectedPart?.id,
+      hasModels: !!selectedPart?.models,
+      modelsLength: selectedPart?.models?.length,
+      models: selectedPart?.models
+    });
+    
     if (selectedPart?.id) {
       // Always sync models from selectedPart when partId or models change
       if (selectedPart?.models && Array.isArray(selectedPart.models) && selectedPart.models.length > 0) {
@@ -156,9 +197,10 @@ export default function PartsPage() {
         setCurrentModels(modelsWithPartId);
       } else {
         // Reset to empty model (only 1) if no models in selectedPart
-        // But only if currentModels is empty or doesn't match
-        const hasCurrentModels = currentModels.some(m => m.modelNo && m.modelNo.trim());
+        // But only if currentModels is empty or doesn't match the partId
+        const hasCurrentModels = currentModels.some(m => m.modelNo && m.modelNo.trim() && m.partId === selectedPart.id);
         if (!hasCurrentModels) {
+          console.log('PartsPage: No models in selectedPart, resetting to empty model');
           setCurrentModels([
             { id: '', partId: selectedPart.id, modelNo: '', qtyUsed: 1, tab: 'P1' }
           ]);
@@ -170,7 +212,7 @@ export default function PartsPage() {
         { id: '', partId: '', modelNo: '', qtyUsed: 1, tab: 'P1' }
       ]);
     }
-  }, [selectedPart?.id]); // Only depend on partId to prevent overwriting user input
+  }, [selectedPart?.id, selectedPart?.models?.length]); // Depend on both partId and models length to catch updates
 
   const handleDeletePart = (id: string) => {
     setSelectedPart(null);
@@ -439,7 +481,7 @@ export default function PartsPage() {
         }}
       >
         <ModelsPanel 
-          key={`models-${selectedPart?.id || 'new'}-${currentModels.length}`}
+          key={`models-${selectedPart?.id || 'new'}-${currentModels.map(m => m.modelNo).join('-')}`}
           partId={selectedPart?.id} 
           partName={selectedPart?.partNo || selectedPart?.description || ''}
           stockQuantity={(selectedPart as any)?.stock?.quantity ?? 0}
@@ -624,12 +666,12 @@ export default function PartsPage() {
                               </span>
                               {kit.totalCost && (
                                 <span>
-                                  <strong>Total Cost:</strong> ${kit.totalCost.toFixed(2)}
+                                  <strong>Total Cost:</strong> Rs {kit.totalCost.toFixed(2)}
                                 </span>
                               )}
                               {kit.price && (
                                 <span>
-                                  <strong>Price:</strong> ${kit.price.toFixed(2)}
+                                  <strong>Price:</strong> Rs {kit.price.toFixed(2)}
                                 </span>
                               )}
                             </div>

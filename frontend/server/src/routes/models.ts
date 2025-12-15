@@ -14,6 +14,77 @@ const modelSchema = z.object({
 // All routes require authentication
 router.use(verifyToken);
 
+// Get all models with part information (pagination + search)
+router.get('/', async (req: AuthRequest, res) => {
+  try {
+    const {
+      page = '1',
+      limit = '50',
+      search = '',
+      partId = '',
+      tab = '',
+    } = req.query;
+
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 50;
+    const offset = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+
+    if (search) {
+      where.OR = [
+        { modelNo: { contains: search as string } },
+        { part: { partNo: { contains: search as string } } },
+        { part: { description: { contains: search as string } } },
+      ];
+    }
+
+    if (partId) {
+      where.partId = partId as string;
+    }
+
+    if (tab) {
+      where.tab = tab as string;
+    }
+
+    const total = await prisma.partModel.count({ where });
+
+    const models = await prisma.partModel.findMany({
+      where,
+      skip: offset,
+      take: limitNum,
+      include: {
+        part: {
+          select: {
+            id: true,
+            partNo: true,
+            description: true,
+            brand: true,
+            mainCategory: true,
+            stock: {
+              select: { quantity: true },
+            },
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }],
+    });
+
+    res.json({
+      models,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error('Get all models error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get models for a part
 router.get('/part/:partId', async (req: AuthRequest, res) => {
   try {

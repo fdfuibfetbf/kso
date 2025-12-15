@@ -5,6 +5,12 @@ import { verifyToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+const partModelInputSchema = z.object({
+  modelNo: z.string().min(1),
+  qtyUsed: z.number().int().min(1).optional(),
+  tab: z.enum(['P1', 'P2']).optional(),
+});
+
 const partSchema = z.object({
   partNo: z.string().min(1),
   masterPartNo: z.string().optional(),
@@ -170,7 +176,8 @@ router.get('/partno/:partNo', async (req: AuthRequest, res) => {
 // Create new part
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const data = partSchema.parse(req.body);
+    const { models, ...partBody } = (req.body || {}) as any;
+    const data = partSchema.parse(partBody);
 
     // Check if partNo already exists
     const existingPart = await prisma.part.findUnique({
@@ -181,40 +188,48 @@ router.post('/', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Part number already exists' });
     }
 
-    // Create part with stock in a transaction
-    const part = await prisma.part.create({
-      data,
-      include: {
-        models: true,
-        stock: true,
-      },
-    });
+    const created = await prisma.$transaction(async (tx) => {
+      const part = await tx.part.create({ data });
 
-    // Create default stock entry if it doesn't exist
-    try {
-      await prisma.stock.upsert({
+      await tx.stock.upsert({
         where: { partId: part.id },
         update: {},
-        create: {
-          partId: part.id,
-          quantity: 0,
-        },
+        create: { partId: part.id, quantity: 0 },
       });
-    } catch (stockError) {
-      // Stock might already exist, continue anyway
-      console.log('Stock entry already exists or error creating stock:', stockError);
-    }
 
-    // Fetch the complete part with stock
-    const partWithStock = await prisma.part.findUnique({
-      where: { id: part.id },
-      include: {
-        models: true,
-        stock: true,
-      },
+      if (models !== undefined) {
+        const parsedModels = z.array(partModelInputSchema).safeParse(models);
+        if (!parsedModels.success) {
+          throw new z.ZodError(parsedModels.error.issues);
+        }
+
+        const validModels = (parsedModels.data || [])
+          .map((m: any) => ({
+            modelNo: typeof m?.modelNo === 'string' ? m.modelNo.trim() : '',
+            qtyUsed: typeof m?.qtyUsed === 'number' ? m.qtyUsed : 1,
+            tab: (m?.tab === 'P2' ? 'P2' : 'P1') as 'P1' | 'P2',
+          }))
+          .filter((m: any) => m.modelNo.length > 0);
+
+        if (validModels.length > 0) {
+          await tx.partModel.createMany({
+            data: validModels.map((m: any) => ({
+              partId: part.id,
+              modelNo: m.modelNo,
+              qtyUsed: m.qtyUsed,
+              tab: m.tab,
+            })),
+          });
+        }
+      }
+
+      return await tx.part.findUnique({
+        where: { id: part.id },
+        include: { models: true, stock: true },
+      });
     });
 
-    res.status(201).json({ part: partWithStock });
+    res.status(201).json({ part: created });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ 
@@ -237,7 +252,8 @@ router.post('/', async (req: AuthRequest, res) => {
 // Update part
 router.put('/:id', async (req: AuthRequest, res) => {
   try {
-    const data = partSchema.partial().parse(req.body);
+    const { models, ...partBody } = (req.body || {}) as any;
+    const data = partSchema.partial().parse(partBody);
 
     // If partNo is being updated, check if it already exists
     if (data.partNo) {
@@ -250,25 +266,58 @@ router.put('/:id', async (req: AuthRequest, res) => {
       }
     }
 
-    const part = await prisma.part.update({
-      where: { id: req.params.id },
-      data,
-      include: {
-        models: true,
-        stock: true,
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.part.update({
+        where: { id: req.params.id },
+        data,
+      });
+
+      if (models !== undefined) {
+        const parsedModels = z.array(partModelInputSchema).safeParse(models);
+        if (!parsedModels.success) {
+          throw new z.ZodError(parsedModels.error.issues);
+        }
+
+        const validModels = (parsedModels.data || [])
+          .map((m: any) => ({
+            modelNo: typeof m?.modelNo === 'string' ? m.modelNo.trim() : '',
+            qtyUsed: typeof m?.qtyUsed === 'number' ? m.qtyUsed : 1,
+            tab: (m?.tab === 'P2' ? 'P2' : 'P1') as 'P1' | 'P2',
+          }))
+          .filter((m: any) => m.modelNo.length > 0);
+
+        await tx.partModel.deleteMany({ where: { partId: req.params.id } });
+
+        if (validModels.length > 0) {
+          await tx.partModel.createMany({
+            data: validModels.map((m: any) => ({
+              partId: req.params.id,
+              modelNo: m.modelNo,
+              qtyUsed: m.qtyUsed,
+              tab: m.tab,
+            })),
+          });
+        }
+      }
+
+      return await tx.part.findUnique({
+        where: { id: req.params.id },
+        include: { models: true, stock: true },
+      });
     });
 
-    res.json({ part });
+    res.json({ part: updated });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors });
+      return res.status(400).json({ 
+        error: error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+      });
     }
     if ((error as any).code === 'P2025') {
       return res.status(404).json({ error: 'Part not found' });
     }
     console.error('Update part error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: (error as Error).message || 'Internal server error' });
   }
 });
 

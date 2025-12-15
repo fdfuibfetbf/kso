@@ -548,7 +548,7 @@ export default function PartsListPage() {
                   <td>${part.subCategory || '-'}</td>
                   <td>${part.application || '-'}</td>
                   <td>${part.status === 'A' ? 'Active' : 'Inactive'}</td>
-                  <td>${part.cost ? `$${part.cost.toFixed(2)}` : '-'}</td>
+                  <td>${part.cost ? `Rs ${part.cost.toFixed(2)}` : '-'}</td>
                   <td>${part.stock?.quantity || 0}</td>
                 </tr>
               `).join('')}
@@ -1254,12 +1254,12 @@ export default function PartsListPage() {
                             </span>
                             {kit.totalCost && (
                               <span>
-                                <strong>Total Cost:</strong> ${kit.totalCost.toFixed(2)}
+                                <strong>Total Cost:</strong> Rs {kit.totalCost.toFixed(2)}
                               </span>
                             )}
                             {kit.price && (
                               <span>
-                                <strong>Price:</strong> ${kit.price.toFixed(2)}
+                                <strong>Price:</strong> Rs {kit.price.toFixed(2)}
                               </span>
                             )}
                           </div>
@@ -1273,7 +1273,7 @@ export default function PartsListPage() {
                                       {item.part?.partNo || 'Unknown Part'}
                                     </div>
                                     <div className="text-gray-600">
-                                      Qty: {item.quantity} × ${item.part?.cost || 0} = ${((item.part?.cost || 0) * item.quantity).toFixed(2)}
+                                      Qty: {item.quantity} × Rs {item.part?.cost || 0} = Rs {((item.part?.cost || 0) * item.quantity).toFixed(2)}
                                     </div>
                                   </div>
                                 ))}

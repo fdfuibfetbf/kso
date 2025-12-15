@@ -38,6 +38,7 @@ export default function ModelsPanel({
   const modelsLoadedRef = useRef<boolean>(false);
 
   // Load models only when partId changes
+  // ModelsPanel ALWAYS displays models from props - this effect only loads from API when partId changes AND models prop is empty
   useEffect(() => {
     const partIdChanged = previousPartIdRef.current !== partId;
     
@@ -47,9 +48,8 @@ export default function ModelsPanel({
       previousPartIdRef.current = partId;
     }
 
-    // If partId changed, we need to load models
+    // If no partId, reset to empty
     if (!partId) {
-      // Always show 1 empty model row when no part selected
       if (onModelsChange && partIdChanged) {
         onModelsChange([
           { id: '', partId: '', modelNo: '', qtyUsed: 1, tab: 'P1' }
@@ -60,10 +60,23 @@ export default function ModelsPanel({
       return;
     }
 
-    // Only load from API if partId changed
-    // Models from props will be displayed automatically via the render
-    // But if partId changed, we need to load fresh models from API
-    if (partIdChanged) {
+    // Only load from API if partId changed AND models prop doesn't have valid data
+    // Check if models prop already has valid data (not just default empty model)
+    const hasValidModelsFromProps = models && models.length > 0 && 
+      models.some((m: PartModel) => m.modelNo && m.modelNo.trim() && m.partId === partId);
+    
+    console.log('ModelsPanel: useEffect check:', {
+      partIdChanged,
+      hasValidModelsFromProps,
+      modelsCount: models?.length || 0,
+      models: models,
+      partId
+    });
+    
+    // If partId changed but we already have valid models from props, don't load from API
+    // This prevents overwriting models that were set by handleSelectPart
+    if (partIdChanged && !hasValidModelsFromProps) {
+      console.log('ModelsPanel: partId changed and no valid models from props, loading from API');
       // Load models from API when partId changes
       const loadModels = async () => {
         setLoading(true);
@@ -74,7 +87,13 @@ export default function ModelsPanel({
           const existingModels = part?.models || [];
           
           // Show at least 1 row
-          const modelsToShow = existingModels.length > 0 ? [...existingModels] : [
+          const modelsToShow = existingModels.length > 0 ? existingModels.map((model: any) => ({
+            id: model.id || '',
+            partId: partId,
+            modelNo: model.modelNo || '',
+            qtyUsed: model.qtyUsed || 1,
+            tab: model.tab || 'P1'
+          })) : [
             { id: '', partId: partId, modelNo: '', qtyUsed: 1, tab: 'P1' }
           ];
           
@@ -100,9 +119,23 @@ export default function ModelsPanel({
       };
 
       loadModels();
+    } else if (partIdChanged && hasValidModelsFromProps) {
+      console.log('ModelsPanel: partId changed but valid models from props, using props:', models);
+      // Update stock quantity only
+      const updateStock = async () => {
+        try {
+          const partResponse = await api.get(`/parts/${partId}`);
+          const part = partResponse.data?.part;
+          setStockQuantity(part?.stock?.quantity ?? 0);
+        } catch (error) {
+          console.error('Failed to load stock:', error);
+        }
+      };
+      updateStock();
+      modelsLoadedRef.current = true;
     }
-    // If partId hasn't changed, ModelsPanel will use models from props (which are displayed in render)
-  }, [partId]); // Only depend on partId to prevent infinite loops
+    // If partId hasn't changed, ModelsPanel will display models from props (via render)
+  }, [partId]); // Only depend on partId - models prop is handled by render
 
   // Log when models prop changes to help debug
   useEffect(() => {
@@ -129,6 +162,14 @@ export default function ModelsPanel({
       const updatedModels = models.map((model, i) => 
         i === index ? { ...model, [field]: value } : model
       );
+      console.log('ModelsPanel: Updating model:', {
+        index,
+        field,
+        value,
+        before: models[index],
+        after: updatedModels[index],
+        totalModels: updatedModels.length
+      });
       onModelsChange(updatedModels);
     }
   };
@@ -201,42 +242,45 @@ export default function ModelsPanel({
               </TableHeader>
               <TableBody>
                 {models && models.length > 0 ? (
-                  models.map((model, index) => (
-                    <TableRow key={`${model.id || 'new'}-${index}`} className="border-b border-gray-100 hover:bg-gray-50">
-                      <TableCell className="px-2 py-1.5">
-                        <Input
-                          value={model.modelNo || ''}
-                          onChange={(e) => updateModel(index, 'modelNo', e.target.value)}
-                          placeholder="Enter model number"
-                          className="h-7 text-xs border-gray-200 focus:border-primary-400"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2 py-1.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeModel(index)}
-                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                            title="Delete"
-                            disabled={models.length <= 1}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </Button>
+                  models.map((model, index) => {
+                    console.log(`ModelsPanel: Rendering model ${index}:`, model);
+                    return (
+                      <TableRow key={`${model.id || 'new'}-${index}-${model.modelNo}`} className="border-b border-gray-100 hover:bg-gray-50">
+                        <TableCell className="px-2 py-1.5">
                           <Input
-                            type="number"
-                            min="1"
-                            value={model.qtyUsed || 1}
-                            onChange={(e) => updateModel(index, 'qtyUsed', parseInt(e.target.value) || 1)}
-                            className="h-7 w-16 text-xs text-right border-gray-200 focus:border-primary-400"
+                            value={model.modelNo || ''}
+                            onChange={(e) => updateModel(index, 'modelNo', e.target.value)}
+                            placeholder="Enter model number"
+                            className="h-7 text-xs border-gray-200 focus:border-primary-400"
                           />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeModel(index)}
+                              className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                              title="Delete"
+                              disabled={models.length <= 1}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </Button>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={model.qtyUsed || 1}
+                              onChange={(e) => updateModel(index, 'qtyUsed', parseInt(e.target.value) || 1)}
+                              className="h-7 w-16 text-xs text-right border-gray-200 focus:border-primary-400"
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={2} className="px-2 py-4 text-center text-gray-500 text-xs">

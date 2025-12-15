@@ -59,25 +59,30 @@ export default function ModelsSelection() {
   const loadModelsForPart = useCallback(async (partId: string) => {
     setModelsLoading(true);
     try {
+      console.log('ModelsSelection: Loading models for part:', partId);
+      
       // Try to fetch from models endpoint first
       try {
         const response = await api.get(`/models/part/${partId}`);
         const modelsData = response.data.models || [];
+        console.log('ModelsSelection: Loaded models from /models/part endpoint:', modelsData);
         setModels(modelsData);
-      } catch (modelsError) {
+      } catch (modelsError: any) {
+        console.log('ModelsSelection: /models/part endpoint failed, trying fallback:', modelsError?.message);
         // Fallback: try to get models from part data
         try {
           const partResponse = await api.get(`/parts/${partId}`);
           const part = partResponse.data?.part;
           const modelsData = part?.models || [];
+          console.log('ModelsSelection: Loaded models from /parts endpoint:', modelsData);
           setModels(modelsData);
-        } catch (partError) {
-          console.error('Failed to load models:', partError);
+        } catch (partError: any) {
+          console.error('ModelsSelection: Failed to load models from both endpoints:', partError);
           setModels([]);
         }
       }
-    } catch (error) {
-      console.error('Failed to load models:', error);
+    } catch (error: any) {
+      console.error('ModelsSelection: Unexpected error loading models:', error);
       setModels([]);
     } finally {
       setModelsLoading(false);
