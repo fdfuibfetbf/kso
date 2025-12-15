@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AutocompleteInput from '@/components/ui/autocomplete-input';
+import { useToast } from '@/components/ui/toast-provider';
 import api from '@/lib/api';
 
 export interface PartModel {
@@ -61,6 +62,7 @@ const ORIGIN_OPTIONS = ['USA', 'CHINA', 'JAPAN', 'GERMANY', 'INDIA', 'OTHER'];
 const STORAGE_KEY = 'partFormDraft_v1';
 
 export default function PartForm({ part, onSave, onDelete, models = [] }: PartFormProps) {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState<Part>({
     partNo: '',
     masterPartNo: '',
@@ -446,10 +448,43 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
     }
   };
 
+  const handleAddMasterPartNo = async (masterPartNo: string) => {
+    // Add the new master part number to the options list
+    // The value will be saved when the part is saved
+    try {
+      setMasterPartNoOptions((prev) => {
+        const updated = [...prev.filter((mpn) => mpn !== masterPartNo), masterPartNo].sort();
+        return updated;
+      });
+      // Show success notification
+      showToast(`Master Part Number "${masterPartNo}" added successfully`, 'success');
+    } catch (error: any) {
+      showToast('Failed to add master part number', 'error');
+      throw new Error('Failed to add master part number');
+    }
+  };
+
+  const handleAddPartNo = async (partNo: string) => {
+    // Add the new part number to the options list
+    // The value will be saved when the part is saved
+    try {
+      setPartNoOptions((prev) => {
+        const updated = [...prev.filter((pn) => pn !== partNo), partNo].sort();
+        return updated;
+      });
+      // Show success notification
+      showToast(`Part Number "${partNo}" added successfully`, 'success');
+    } catch (error: any) {
+      showToast('Failed to add part number', 'error');
+      throw new Error('Failed to add part number');
+    }
+  };
+
   const handleAddBrand = async (brandName: string) => {
     // Require Part No before allowing brand creation from Part Entry
     // (same idea as Part No requiring Master Part #)
     if (!formData.partNo || formData.partNo.trim() === '') {
+      showToast('Please enter Part No/SSP# first', 'error');
       throw new Error('Please enter Part No/SSP# first');
     }
     try {
@@ -458,8 +493,12 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
         status: 'A',
       });
       setBrandOptions((prev) => [...prev.filter((b) => b !== brandName), brandName].sort());
+      // Show success notification
+      showToast(`Brand "${brandName}" added successfully`, 'success');
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to add brand');
+      const errorMessage = error.response?.data?.error || 'Failed to add brand';
+      showToast(errorMessage, 'error');
+      throw new Error(errorMessage);
     }
   };
 
@@ -473,8 +512,12 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
       setCategoryOptions((prev) => [...prev.filter((c) => c !== categoryName), categoryName].sort());
       // Set the new category ID
       setSelectedMainCategoryId(response.data.category.id);
+      // Show success notification
+      showToast(`Category "${categoryName}" added successfully`, 'success');
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to add category');
+      const errorMessage = error.response?.data?.error || 'Failed to add category';
+      showToast(errorMessage, 'error');
+      throw new Error(errorMessage);
     }
   };
 
@@ -810,8 +853,9 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                   label="Master Part #"
                   value={formData.masterPartNo || ''}
                   onChange={(value) => handleChange('masterPartNo', value)}
+                  onAddNew={handleAddMasterPartNo}
                   options={masterPartNoOptions}
-                  placeholder={masterPartNoLoading ? "Loading options..." : "Type to search or enter new"}
+                  placeholder={masterPartNoLoading ? "Loading options..." : "Type to search or press Enter to add new"}
                 />
               </div>
               <div>
@@ -820,8 +864,9 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                   label="Part No/SSP#"
                   value={formData.partNo}
                   onChange={(value) => handleChange('partNo', value)}
+                  onAddNew={handleAddPartNo}
                   options={partNoOptions}
-                  placeholder={partNoLoading ? "Loading options..." : formData.masterPartNo ? "Type to search or enter new" : "Select master part number first"}
+                  placeholder={partNoLoading ? "Loading options..." : formData.masterPartNo ? "Type to search or press Enter to add new" : "Select master part number first"}
                   required={true}
                   disabled={!formData.masterPartNo || formData.masterPartNo.trim() === ''}
                 />

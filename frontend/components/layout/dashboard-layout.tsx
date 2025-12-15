@@ -10,6 +10,7 @@ import SearchModal from './search-modal';
 import NotificationsDropdown from './notifications-dropdown';
 import UserMenu from './user-menu';
 import TeamMembersPopover from './team-members-popover';
+import { ToastProvider } from '@/components/ui/toast-provider';
 
 export default function DashboardLayout({
   children,
@@ -215,15 +216,16 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-white flex">
-      <Sidebar 
-        isCollapsed={isCollapsed} 
-        isHovered={isHovered}
-        onToggle={() => setIsCollapsed(!isCollapsed)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      />
-      <div className="flex-1 flex flex-col ml-0 sm:ml-16 md:ml-20 pb-16 sm:pb-0">
+    <ToastProvider>
+      <div className="min-h-screen bg-white flex">
+        <Sidebar 
+          isCollapsed={isCollapsed} 
+          isHovered={isHovered}
+          onToggle={() => setIsCollapsed(!isCollapsed)}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        />
+        <div className="flex-1 flex flex-col ml-0 sm:ml-16 md:ml-20 pb-16 sm:pb-0">
         {/* Header Bar */}
         <header ref={headerRef} className="bg-white border-b border-gray-200 sticky top-0 z-40">
           <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
@@ -516,7 +518,8 @@ export default function DashboardLayout({
             {children}
           </PageTransition>
         </main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }
