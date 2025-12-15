@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AutocompleteInput from '@/components/ui/autocomplete-input';
+import AnimatedSelect from '@/components/ui/animated-select';
 import { useToast } from '@/components/ui/toast-provider';
 import api from '@/lib/api';
 
@@ -990,26 +991,22 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
               </div>
               <div className="space-y-2">
                 <Label htmlFor="uom" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">UOM (A-Z)</Label>
-                <Select
-                  id="uom"
+                <AnimatedSelect
                   value={formData.uom || 'NOS'}
-                  onChange={(e) => handleChange('uom', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                >
-                  {UOM_OPTIONS.map((uom) => (
-                    <option key={uom} value={uom}>
-                      {uom}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(value) => handleChange('uom', value)}
+                  options={UOM_OPTIONS.map((uom) => ({ value: uom, label: uom }))}
+                  placeholder="Select UOM"
+                  className="h-11"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="weight" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Weight (Kg)</Label>
                 <Input
                   id="weight"
-                  type="text"
+                  type="number"
+                  step="0.01"
                   value={formData.weight || ''}
-                  onChange={(e) => handleChange('weight', e.target.value)}
+                  onChange={(e) => handleChange('weight', e.target.value ? parseFloat(e.target.value) : undefined)}
                   className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
                   placeholder=""
                 />
@@ -1100,52 +1097,39 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
               </div>
               <div className="space-y-2">
                 <Label htmlFor="origin" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Origin</Label>
-                <Select
-                  id="origin"
+                <AnimatedSelect
                   value={formData.origin || ''}
-                  onChange={(e) => handleChange('origin', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                >
-                  <option value="">Select Origin</option>
-                  {ORIGIN_OPTIONS.map((origin) => (
-                    <option key={origin} value={origin}>
-                      {origin}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(value) => handleChange('origin', value)}
+                  options={[
+                    { value: '', label: 'Select Origin' },
+                    ...ORIGIN_OPTIONS.map((origin) => ({ value: origin, label: origin }))
+                  ]}
+                  placeholder="Select Origin"
+                  className="h-11"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="grade" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Grade (A/B/C/D)</Label>
-                <Select
-                  id="grade"
+                <AnimatedSelect
                   value={formData.grade || 'B'}
-                  onChange={(e) => handleChange('grade', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                >
-                  {GRADE_OPTIONS.map((grade) => (
-                    <option key={grade} value={grade}>
-                      {grade}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(value) => handleChange('grade', value)}
+                  options={GRADE_OPTIONS.map((grade) => ({ value: grade, label: grade }))}
+                  placeholder="Select Grade"
+                  className="h-11"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               <div className="space-y-2">
                 <Label htmlFor="status" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Status (A/N)</Label>
-                <Select
-                  id="status"
+                <AnimatedSelect
                   value={formData.status || 'A'}
-                  onChange={(e) => handleChange('status', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(value) => handleChange('status', value)}
+                  options={STATUS_OPTIONS.map((status) => ({ value: status, label: status }))}
+                  placeholder="Select Status"
+                  className="h-11"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smc" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">SMC</Label>

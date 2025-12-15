@@ -237,11 +237,11 @@ export default function StockBalanceValuation() {
               </div>
               <div class="summary-card">
                 <h3>Total Value</h3>
-                <p>$${summary.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                <p>Rs ${summary.totalValue.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</p>
               </div>
               <div class="summary-card">
                 <h3>Average Cost</h3>
-                <p>$${summary.averageCost.toFixed(2)}</p>
+                <p>Rs ${summary.averageCost.toFixed(2)}</p>
               </div>
             </div>
             
@@ -269,8 +269,8 @@ export default function StockBalanceValuation() {
                     <td>${item.category || '-'}</td>
                     <td>${item.uom || '-'}</td>
                     <td class="text-right">${item.quantity.toLocaleString()}</td>
-                    <td class="text-right">$${item.cost.toFixed(2)}</td>
-                    <td class="text-right">$${item.value.toFixed(2)}</td>
+                    <td class="text-right">Rs ${item.cost.toFixed(2)}</td>
+                    <td class="text-right">Rs ${item.value.toFixed(2)}</td>
                     <td>${item.store || '-'}</td>
                     <td>${item.rack}/${item.shelf}</td>
                   </tr>
@@ -279,7 +279,7 @@ export default function StockBalanceValuation() {
                   <td colspan="5">TOTAL</td>
                   <td class="text-right">${summary.totalQuantity.toLocaleString()}</td>
                   <td class="text-right">-</td>
-                  <td class="text-right">$${summary.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                  <td class="text-right">Rs ${summary.totalValue.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</td>
                   <td colspan="2"></td>
                 </tr>
               </tbody>
@@ -378,7 +378,7 @@ export default function StockBalanceValuation() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-700">Total Value</p>
-                <p className="text-3xl font-bold text-green-900">${summary.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="text-3xl font-bold text-green-900">Rs {summary.totalValue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -394,7 +394,7 @@ export default function StockBalanceValuation() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-purple-700">Avg. Unit Cost</p>
-                <p className="text-3xl font-bold text-purple-900">${summary.averageCost.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-purple-900">Rs {summary.averageCost.toFixed(2)}</p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -249,15 +249,15 @@ export default function StockMultiDimensionalReport() {
                     ${dimension3 ? `<td>${row.dimension3 || '-'}</td>` : ''}
                     <td class="text-right">${row.itemCount.toLocaleString()}</td>
                     <td class="text-right">${row.quantity.toLocaleString()}</td>
-                    <td class="text-right">$${row.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td class="text-right">$${row.avgCost.toFixed(2)}</td>
+                    <td class="text-right">Rs ${row.value.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</td>
+                    <td class="text-right">Rs ${row.avgCost.toFixed(2)}</td>
                   </tr>
                 `).join('')}
                 <tr class="total-row">
                   <td colspan="${1 + (dimension2 ? 1 : 0) + (dimension3 ? 1 : 0)}">TOTAL</td>
                   <td class="text-right">${totals.itemCount.toLocaleString()}</td>
                   <td class="text-right">${totals.quantity.toLocaleString()}</td>
-                  <td class="text-right">$${totals.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                  <td class="text-right">Rs ${totals.value.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</td>
                   <td class="text-right">-</td>
                 </tr>
               </tbody>

@@ -71,7 +71,7 @@ export default function PurchaseComparisonReport() {
     items: ((summaryStats.period2Items - summaryStats.period1Items) / summaryStats.period1Items * 100).toFixed(1),
   }), [summaryStats]);
 
-  const formatCurrency = (value: number) => `PKR ${value.toLocaleString()}`;
+  const formatCurrency = (value: number) => `Rs ${value.toLocaleString()}`;
 
   const getChangeIndicator = (change: number) => {
     if (change > 0) {

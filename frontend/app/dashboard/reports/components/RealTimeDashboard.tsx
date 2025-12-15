@@ -74,7 +74,7 @@ export default function RealTimeDashboard() {
 
   const maxHourlySales = Math.max(...hourlyData.map(h => h.sales));
 
-  const formatCurrency = (value: number) => `PKR ${value.toLocaleString()}`;
+  const formatCurrency = (value: number) => `Rs ${value.toLocaleString()}`;
 
   const getTransactionIcon = (type: string) => {
     switch (type) {

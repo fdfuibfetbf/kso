@@ -402,7 +402,7 @@ export default function SalesInvoice() {
                           >
                             <div className="font-medium">{part.partNo}</div>
                             <div className="text-sm text-gray-600">{part.description}</div>
-                            <div className="text-sm text-gray-500">Price: ${part.priceA || part.priceB || part.priceM || 0}</div>
+                            <div className="text-sm text-gray-500">Price: Rs {part.priceA || part.priceB || part.priceM || 0}</div>
                           </div>
                         ))}
                       </div>
@@ -469,7 +469,7 @@ export default function SalesInvoice() {
                                 min="0"
                               />
                             </TableCell>
-                            <TableCell className="font-medium">${item.totalPrice.toFixed(2)}</TableCell>
+                            <TableCell className="font-medium">Rs {item.totalPrice.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                               <Button
                                 type="button"
@@ -493,7 +493,7 @@ export default function SalesInvoice() {
                   <div className="space-y-2">
                     <div className="flex justify-between w-64">
                       <span>Subtotal:</span>
-                      <span className="font-medium">${formData.subTotal.toFixed(2)}</span>
+                      <span className="font-medium">Rs {formData.subTotal.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Discount:</span>
@@ -527,7 +527,7 @@ export default function SalesInvoice() {
                     </div>
                     <div className="flex justify-between">
                       <span>Total Amount:</span>
-                      <span className="font-bold text-lg">${formData.totalAmount.toFixed(2)}</span>
+                      <span className="font-bold text-lg">Rs {formData.totalAmount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Paid Amount:</span>
@@ -546,7 +546,7 @@ export default function SalesInvoice() {
                     </div>
                     <div className="flex justify-between">
                       <span>Balance:</span>
-                      <span className="font-medium">${formData.balanceAmount.toFixed(2)}</span>
+                      <span className="font-medium">Rs {formData.balanceAmount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 </div>
@@ -606,8 +606,8 @@ export default function SalesInvoice() {
                     <TableCell>{invoice.customerName}</TableCell>
                     <TableCell>{new Date(invoice.invoiceDate).toLocaleDateString()}</TableCell>
                     <TableCell>{new Date(invoice.dueDate).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-semibold">${invoice.totalAmount.toFixed(2)}</TableCell>
-                    <TableCell className="font-semibold">${invoice.balanceAmount.toFixed(2)}</TableCell>
+                    <TableCell className="font-semibold">Rs {invoice.totalAmount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="font-semibold">Rs {invoice.balanceAmount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(invoice.status)}`}>
                         {invoice.status}

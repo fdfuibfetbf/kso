@@ -66,7 +66,7 @@ export default function LandedCostSheet() {
   const [supplierName, setSupplierName] = useState('');
   const [invoiceNo, setInvoiceNo] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('PKR');
   const [exchangeRate, setExchangeRate] = useState(1);
   const [notes, setNotes] = useState('');
   

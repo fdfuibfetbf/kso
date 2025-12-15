@@ -56,7 +56,7 @@ export default function SupplierPerformanceReport() {
     }
   });
 
-  const formatCurrency = (value: number) => `PKR ${value.toLocaleString()}`;
+  const formatCurrency = (value: number) => `Rs ${value.toLocaleString()}`;
 
   const getScoreBadge = (score: number) => {
     if (score >= 95) return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">Excellent</span>;

@@ -289,12 +289,10 @@ export default function ProfitabilityReport() {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return `Rs ${value.toLocaleString('en-PK', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(value);
+    })}`;
   };
 
   return (

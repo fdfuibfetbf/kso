@@ -78,7 +78,7 @@ export default function SalesTargetReport() {
     belowMonths: monthlyTargets.filter(t => t.status === 'below' || t.status === 'critical').length,
   }), [monthlyTargets]);
 
-  const formatCurrency = (value: number) => `PKR ${value.toLocaleString()}`;
+  const formatCurrency = (value: number) => `Rs ${value.toLocaleString()}`;
   const formatCompact = (value: number) => {
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;

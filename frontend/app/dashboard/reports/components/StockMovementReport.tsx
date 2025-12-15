@@ -53,7 +53,7 @@ export default function StockMovementReport() {
     avgTurnover: (stockData.reduce((sum, i) => sum + i.turnoverRatio, 0) / stockData.length).toFixed(1),
   };
 
-  const formatCurrency = (value: number) => `PKR ${value.toLocaleString()}`;
+  const formatCurrency = (value: number) => `Rs ${value.toLocaleString()}`;
 
   const getClassificationBadge = (classification: string) => {
     switch (classification) {

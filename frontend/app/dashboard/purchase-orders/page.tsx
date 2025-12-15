@@ -77,7 +77,7 @@ export default function PurchaseOrdersPage() {
   
   // Receive form state
   const [selectedStore, setSelectedStore] = useState<string>('');
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('USD');
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('PKR');
   const [currencyRate, setCurrencyRate] = useState<number>(1);
   const [receiveItems, setReceiveItems] = useState<any[]>([]);
   const [receiveDiscount, setReceiveDiscount] = useState<number>(0);
@@ -470,7 +470,7 @@ export default function PurchaseOrdersPage() {
     setReceivingPO(po);
     setReceiveDate(new Date().toISOString().split('T')[0]);
     setReceiveRemarks(po.notes || '');
-    setSelectedCurrency('USD');
+    setSelectedCurrency('PKR');
     setCurrencyRate(1);
     setSelectedStore('');
     setReceiveDiscount(0);
@@ -860,7 +860,7 @@ export default function PurchaseOrdersPage() {
                         <th className="py-3 px-3 text-left font-medium">Item Description</th>
                         <th className="py-3 px-3 text-left font-medium">Remarks</th>
                         <th className="py-3 px-3 text-right font-medium">
-                          Price ({currencies.find(c => c.code === selectedCurrency)?.code || 'USD'})
+                          Price ({currencies.find(c => c.code === selectedCurrency)?.code || 'PKR'})
                         </th>
                         <th className="py-3 px-3 text-right font-medium">Purchase Price(PKR)</th>
                         <th className="py-3 px-3 text-right font-medium">Sale Price</th>
@@ -1013,19 +1013,19 @@ export default function PurchaseOrdersPage() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-700 block">
-                        Total ({currencies.find(c => c.code === selectedCurrency)?.code || 'USD'})
+                        Total ({currencies.find(c => c.code === selectedCurrency)?.code || 'PKR'})
                       </Label>
                       <Input value={totals.totalInCurrency.toLocaleString()} disabled readOnly className="w-full bg-white" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-700 block">
-                        Discount ({currencies.find(c => c.code === selectedCurrency)?.code || 'USD'})
+                        Discount ({currencies.find(c => c.code === selectedCurrency)?.code || 'PKR'})
                       </Label>
                       <Input value={totals.discountInCurrency.toLocaleString()} disabled readOnly className="w-full bg-white" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-700 block">
-                        Total after discount ({currencies.find(c => c.code === selectedCurrency)?.code || 'USD'})
+                        Total after discount ({currencies.find(c => c.code === selectedCurrency)?.code || 'PKR'})
                       </Label>
                       <Input value={totals.totalAfterDiscountInCurrency.toLocaleString()} disabled readOnly className="w-full bg-white" />
                     </div>

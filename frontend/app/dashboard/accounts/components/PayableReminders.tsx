@@ -166,11 +166,10 @@ export default function PayableReminders() {
   const overdueCount = reminders.filter(r => r.status === 'Overdue').length;
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR',
+    return `Rs ${amount.toLocaleString('en-PK', {
       minimumFractionDigits: 0,
-    }).format(amount);
+      maximumFractionDigits: 0,
+    })}`;
   };
 
   const getStatusColor = (status: string) => {

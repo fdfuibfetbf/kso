@@ -67,7 +67,7 @@ export default function CustomerAgingReport() {
     highRiskAccounts: agingData.filter(c => c.riskLevel === 'high').length,
   };
 
-  const formatCurrency = (value: number) => `PKR ${value.toLocaleString()}`;
+  const formatCurrency = (value: number) => `Rs ${value.toLocaleString()}`;
 
   const getRiskBadge = (risk: string) => {
     switch (risk) {

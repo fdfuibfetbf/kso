@@ -206,11 +206,10 @@ export default function SupplierPayments() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR',
+    return `Rs ${amount.toLocaleString('en-PK', {
       minimumFractionDigits: 0,
-    }).format(amount);
+      maximumFractionDigits: 0,
+    })}`;
   };
 
   const handleCreatePayment = () => {

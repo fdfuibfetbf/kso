@@ -399,7 +399,7 @@ export default function ApprovalFlows() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900 font-medium">
-                        {approval.amount ? `PKR ${approval.amount.toLocaleString()}` : '-'}
+                        {approval.amount ? `Rs ${approval.amount.toLocaleString()}` : '-'}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">

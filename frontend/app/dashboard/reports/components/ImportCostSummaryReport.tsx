@@ -64,7 +64,7 @@ export default function ImportCostSummaryReport() {
     return acc;
   }, {} as Record<string, { totalCost: number; count: number }>);
 
-  const formatCurrency = (value: number) => `PKR ${value.toLocaleString()}`;
+  const formatCurrency = (value: number) => `Rs ${value.toLocaleString()}`;
 
   const getStatusBadge = (status: string) => {
     switch (status) {

@@ -174,11 +174,10 @@ export default function GeneralLedger() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR',
+    return `Rs ${amount.toLocaleString('en-PK', {
       minimumFractionDigits: 2,
-    }).format(amount);
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   return (

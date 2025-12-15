@@ -67,7 +67,7 @@ export default function BrandWiseReport() {
   });
 
   const formatCurrency = (value: number) => {
-    return `PKR ${value.toLocaleString()}`;
+    return `Rs ${value.toLocaleString()}`;
   };
 
   const getTrendIcon = (trend: string) => {

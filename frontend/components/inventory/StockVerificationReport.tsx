@@ -371,7 +371,7 @@ export default function StockVerificationReport() {
               <div class="summary-card" style="background: #fef3c7; border-left: 3px solid #f59e0b;">
                 <h3 style="margin: 0; color: #92400e;">Variance Value</h3>
                 <p style="font-size: 18px; font-weight: bold; margin: 5px 0; color: ${summary.varianceValue >= 0 ? '#10b981' : '#ef4444'};">
-                  $${Math.abs(summary.varianceValue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  Rs ${Math.abs(summary.varianceValue).toLocaleString('en-PK', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -658,7 +658,7 @@ export default function StockVerificationReport() {
                   <div>
                     <p className={`text-sm font-medium ${summary.varianceValue >= 0 ? 'text-green-700' : 'text-red-700'}`}>Variance Value</p>
                     <p className={`text-2xl font-bold ${summary.varianceValue >= 0 ? 'text-green-900' : 'text-red-900'}`}>
-                      {summary.varianceValue >= 0 ? '+' : '-'}${Math.abs(summary.varianceValue).toFixed(2)}
+                      {summary.varianceValue >= 0 ? '+' : '-'}Rs {Math.abs(summary.varianceValue).toFixed(2)}
                     </p>
                   </div>
                   <div className={`p-2 rounded-lg ${summary.varianceValue >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>

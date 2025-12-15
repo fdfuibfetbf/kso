@@ -358,7 +358,7 @@ export default function SalesQuotation() {
                     <TableCell>{quotation.customerName}</TableCell>
                     <TableCell>{new Date(quotation.quotationDate).toLocaleDateString()}</TableCell>
                     <TableCell>{new Date(quotation.validUntil).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-semibold">${quotation.totalAmount.toFixed(2)}</TableCell>
+                    <TableCell className="font-semibold">Rs {quotation.totalAmount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(quotation.status)}`}>
                         {quotation.status}
