@@ -48,6 +48,7 @@ export interface PurchaseOrder {
   expectedDate?: string;
   receivedAt?: string | null;
   status: 'draft' | 'pending' | 'approved' | 'received' | 'cancelled';
+  paymentMethod?: 'cash' | 'bank_transfer' | 'cheque' | 'credit_card' | 'other';
   subTotal: number;
   tax: number;
   discount: number;
@@ -113,6 +114,7 @@ export default function PurchaseOrdersPage() {
     orderDate: new Date().toISOString().split('T')[0],
     expectedDate: '',
     status: 'draft',
+    paymentMethod: 'cash',
     subTotal: 0,
     tax: 0,
     discount: 0,
@@ -280,7 +282,7 @@ export default function PurchaseOrdersPage() {
         quantity: 1,
         unitPrice: 0,
         totalPrice: 0,
-        uom: '',
+        uom: 'NOS',
       }, ...prev.items],
     }));
   };
@@ -309,7 +311,7 @@ export default function PurchaseOrdersPage() {
         updated[index].description = part.description || '';
         updated[index].unitPrice = part.cost || 0;
         updated[index].totalPrice = (updated[index].quantity || 1) * (part.cost || 0);
-        updated[index].uom = part.uom || '';
+        updated[index].uom = part.uom || 'NOS';
       }
     }
     
@@ -348,6 +350,9 @@ export default function PurchaseOrdersPage() {
         poNo: selectedPO?.id ? formData.poNo : poNoToSend,
         type: 'purchase',
         supplierId: formData.supplierId ? formData.supplierId : undefined,
+        // Backend requires non-null values
+        paymentMethod: (formData as any).paymentMethod || 'cash',
+        notes: (formData.notes ?? '').toString(),
         items: formData.items.map(item => ({
           partId: item.partId || undefined,
           partNo: item.partNo,
@@ -355,7 +360,10 @@ export default function PurchaseOrdersPage() {
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice: item.totalPrice,
-          uom: item.uom,
+          uom:
+            item.uom?.toString().trim() ||
+            availableParts.find(p => p.id === item.partId)?.uom ||
+            'NOS',
         })),
       };
 
@@ -387,6 +395,12 @@ export default function PurchaseOrdersPage() {
       supplierId: po.supplierId || po.supplier?.id || '',
       orderDate: po.orderDate ? new Date(po.orderDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       expectedDate: po.expectedDate ? new Date(po.expectedDate).toISOString().split('T')[0] : '',
+      paymentMethod: (po as any).paymentMethod || 'cash',
+      notes: (po.notes ?? '').toString(),
+      items: (po.items || []).map((it: any) => ({
+        ...it,
+        uom: (it?.uom ?? 'NOS').toString(),
+      })),
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -436,6 +450,7 @@ export default function PurchaseOrdersPage() {
       orderDate: new Date().toISOString().split('T')[0],
       expectedDate: '',
       status: 'draft',
+      paymentMethod: 'cash',
       subTotal: 0,
       tax: 0,
       discount: 0,
@@ -679,25 +694,36 @@ export default function PurchaseOrdersPage() {
 
       {/* View PO Modal */}
       {viewingPO && (
-        <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-4">
-          <Card className="w-full max-w-4xl shadow-2xl">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Purchase Order Details</CardTitle>
-              <Button variant="ghost" onClick={() => setViewingPO(null)}>✕</Button>
+        <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-2 sm:p-4">
+          <Card className="w-[min(96vw,64rem)] max-h-[90vh] shadow-2xl flex flex-col overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 py-3">
+              <CardTitle className="text-base sm:text-lg">Purchase Order Details</CardTitle>
+              <Button variant="ghost" onClick={() => setViewingPO(null)} className="h-8 w-8 px-0">✕</Button>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CardContent className="flex-1 overflow-y-auto po-details-scroll space-y-3 sm:space-y-4">
+              <style
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    @media (max-width: 768px) {
+                      .po-details-scroll::-webkit-scrollbar { display: none; }
+                      .po-details-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+                    }
+                  `,
+                }}
+              />
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
                   <p className="text-xs text-gray-500">PO No</p>
-                  <p className="font-semibold">{viewingPO.poNo}</p>
+                  <p className="font-semibold break-words">{viewingPO.poNo}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Supplier</p>
-                  <p className="font-semibold">{viewingPO.supplierName}</p>
+                  <p className="font-semibold break-words">{viewingPO.supplierName}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Status</p>
-                  <p className="font-semibold">{viewingPO.status}</p>
+                  <p className="font-semibold break-words capitalize">{viewingPO.status}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Request Date</p>
@@ -716,26 +742,28 @@ export default function PurchaseOrdersPage() {
               <div>
                 <p className="text-xs text-gray-500 mb-2">Items</p>
                 <div className="border rounded-md overflow-hidden">
-                  <table className="w-full text-sm">
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full text-sm min-w-[520px]">
                     <thead className="bg-gray-50">
                       <tr className="text-left">
-                        <th className="px-3 py-2">Part No</th>
-                        <th className="px-3 py-2">Qty</th>
-                        <th className="px-3 py-2">Unit Price</th>
-                        <th className="px-3 py-2">Total</th>
+                        <th className="px-3 py-2 whitespace-nowrap">Part No</th>
+                        <th className="px-3 py-2 whitespace-nowrap">Qty</th>
+                        <th className="px-3 py-2 whitespace-nowrap">Unit Price</th>
+                        <th className="px-3 py-2 whitespace-nowrap">Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(viewingPO.items || []).map((it: any, idx: number) => (
                         <tr key={idx} className="border-t">
-                          <td className="px-3 py-2 font-medium">{it.partNo}</td>
-                          <td className="px-3 py-2">{it.quantity}</td>
-                          <td className="px-3 py-2">{Number(it.unitPrice || 0).toLocaleString()}</td>
-                          <td className="px-3 py-2">{Number(it.totalPrice || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 font-medium break-words min-w-[180px]">{it.partNo}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{it.quantity}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{Number(it.unitPrice || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{Number(it.totalPrice || 0).toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                    </table>
+                  </div>
                 </div>
               </div>
             </CardContent>

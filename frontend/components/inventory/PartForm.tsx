@@ -870,26 +870,26 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
   };
 
   return (
-    <Card className="h-full bg-white border border-gray-200 shadow-medium rounded-lg overflow-hidden flex flex-col">
-      <CardHeader className="bg-white border-b border-gray-200 px-6 py-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-1 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full"></div>
+    <Card className="h-full md:h-full bg-white border border-gray-200 shadow-medium rounded-lg overflow-hidden flex flex-col max-w-full w-full">
+      <CardHeader className="bg-white border-b border-gray-200 px-1.5 sm:px-4 md:px-6 py-1.5 sm:py-4 md:py-5 mobile-compact">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+          <div className="flex items-center gap-1.5 sm:gap-4">
+            <div className="h-6 sm:h-10 w-0.5 sm:w-1 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full"></div>
             <div>
-              <CardTitle className="text-xl font-semibold text-gray-900">
+              <CardTitle className="text-base sm:text-xl font-semibold text-gray-900">
                 {part?.id ? 'Edit Part' : 'Create New Part'}
               </CardTitle>
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 {part?.id ? `Editing: ${part.partNo}` : 'Add a new inventory part'}
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2 w-full sm:w-auto">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={handleNew}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 font-medium"
+              className="flex-1 sm:flex-none border-gray-300 text-gray-700 hover:bg-gray-50 font-medium text-xs px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9"
             >
               New
             </Button>
@@ -898,7 +898,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                 variant="destructive" 
                 size="sm" 
                 onClick={handleDelete}
-                className="bg-red-600 hover:bg-red-700 text-white font-medium"
+                className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white font-medium text-xs px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9"
               >
                 Delete
               </Button>
@@ -906,32 +906,117 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-6 bg-white flex-1 overflow-y-auto scroll-smooth scrollbar-visible" style={{ scrollBehavior: 'smooth' }}>
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <CardContent className="p-1 sm:p-4 md:p-6 bg-white flex-1 overflow-y-auto scroll-smooth mobile-scrollbar-hide max-w-full overflow-x-hidden w-full" style={{ scrollBehavior: 'smooth' }}>
+        <style dangerouslySetInnerHTML={{__html: `
+          @media (max-width: 768px) {
+            .mobile-scrollbar-hide {
+              font-size: 90% !important;
+            }
+            .mobile-scrollbar-hide::-webkit-scrollbar {
+              display: none;
+            }
+            .mobile-scrollbar-hide {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+            }
+            .mobile-scrollbar-hide * {
+              max-width: 100% !important;
+              box-sizing: border-box !important;
+            }
+            .mobile-scrollbar-hide input,
+            .mobile-scrollbar-hide textarea,
+            .mobile-scrollbar-hide select {
+              font-size: 11.7px !important;
+              padding: 4.5px 5.4px !important;
+              height: 28.8px !important;
+              width: 100% !important;
+            }
+            .mobile-scrollbar-hide textarea {
+              height: auto !important;
+              min-height: 40.5px !important;
+              padding: 4.5px 5.4px !important;
+            }
+            .mobile-scrollbar-hide .space-y-2 > *,
+            .mobile-scrollbar-hide .space-y-1.5 > * {
+              width: 100% !important;
+            }
+            .mobile-scrollbar-hide [class*="grid"] {
+              width: 100% !important;
+              margin-left: 0 !important;
+              margin-right: 0 !important;
+            }
+            .mobile-scrollbar-hide [class*="grid"] > * {
+              width: 100% !important;
+              min-width: 0 !important;
+              max-width: 100% !important;
+            }
+            .mobile-scrollbar-hide [class*="space-y"] > * {
+              width: 100% !important;
+              min-width: 0 !important;
+            }
+            .mobile-scrollbar-hide form {
+              width: 100% !important;
+              max-width: 100% !important;
+            }
+            .mobile-scrollbar-hide .space-y-1 > *,
+            .mobile-scrollbar-hide .space-y-1.5 > *,
+            .mobile-scrollbar-hide .space-y-2 > *,
+            .mobile-scrollbar-hide .space-y-2.5 > * {
+              width: 100% !important;
+            }
+            .mobile-scrollbar-hide button {
+              font-size: 10.8px !important;
+              padding: 4.5px 5.4px !important;
+              height: 28.8px !important;
+            }
+            .mobile-scrollbar-hide label {
+              font-size: 10.8px !important;
+            }
+            .mobile-scrollbar-hide h1,
+            .mobile-scrollbar-hide h2,
+            .mobile-scrollbar-hide h3,
+            .mobile-scrollbar-hide h4 {
+              font-size: 90% !important;
+            }
+            .mobile-compact {
+              padding: 0.375rem 0.375rem !important;
+            }
+            .mobile-scrollbar-hide [class*="p-"] {
+              padding: calc(var(--padding-value, 0.5rem) * 0.9) !important;
+            }
+            .mobile-scrollbar-hide [class*="gap-1.5"] {
+              gap: 0.3375rem !important;
+            }
+            .mobile-scrollbar-hide [class*="gap-2"] {
+              gap: 0.45rem !important;
+            }
+          }
+        `}} />
+        <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-5 md:space-y-6 max-w-full w-full">
           {error && (
-            <div className="p-4 text-sm text-red-700 bg-red-50 border-l-4 border-red-500 rounded-r-md shadow-soft flex items-start gap-3">
+            <div className="p-2 sm:p-4 text-xs text-red-700 bg-red-50 border-l-4 border-red-500 rounded-r-md shadow-soft flex items-start gap-2">
               <div className="flex-shrink-0 mt-0.5">
-                <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 {typeof error === 'object' ? JSON.stringify(error) : error}
               </div>
             </div>
           )}
 
           {/* Part Information Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+          <div className="space-y-2 sm:space-y-4">
+            <div className="flex items-center gap-1 sm:gap-3 pb-1 sm:pb-3 border-b border-gray-200">
               <div className="h-1 w-1 rounded-full bg-primary-500"></div>
-              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
+              <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wider">
                 Part Information
               </h3>
             </div>
             {/* First Line: Master Part No, Part No/SSP#, Brand */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-1 sm:gap-4 md:gap-5 w-full">
+              <div className="w-full min-w-0">
                 <AutocompleteInput
                   id="masterPartNo"
                   label="Master Part #"
@@ -942,7 +1027,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                   placeholder={masterPartNoLoading ? "Loading options..." : "Type to search or press Enter to add new"}
                 />
               </div>
-              <div>
+              <div className="w-full min-w-0">
                 <AutocompleteInput
                   id="partNo"
                   label="Part No/SSP#"
@@ -955,7 +1040,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                   disabled={!formData.masterPartNo || formData.masterPartNo.trim() === ''}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1 sm:space-y-2 w-full">
                 <AutocompleteInput
                   id="brand"
                   label="Brand"
@@ -973,13 +1058,13 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
               </div>
             </div>
             {/* Second Line: Description (full width, expandable) */}
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Description</Label>
+            <div className="space-y-1 sm:space-y-2 w-full">
+              <Label htmlFor="description" className="text-xs font-semibold text-gray-700 block h-4 sm:h-5 flex items-center">Description</Label>
               <Textarea
                 id="description"
                 value={formData.description || ''}
                 onChange={(e) => handleChange('description', e.target.value)}
-                className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 min-h-[60px] resize-y"
+                className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 min-h-[45px] sm:min-h-[60px] resize-y text-xs sm:text-sm w-full"
                 placeholder="Enter part description"
                 rows={2}
               />
@@ -987,223 +1072,51 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
           </div>
 
           {/* Classification Section */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              <AutocompleteInput
-                id="mainCategory"
-                label="Category"
-                value={formData.mainCategory || ''}
-                onChange={(value) => handleChange('mainCategory', value)}
-                onAddNew={handleAddCategory}
-                options={categoryOptions}
-                placeholder="Type to search or press Enter to add new"
-              />
-              <AutocompleteInput
-                id="subCategory"
-                label="Sub Category"
-                value={formData.subCategory || ''}
-                onChange={(value) => handleChange('subCategory', value)}
-                onAddNew={handleAddSubCategory}
-                options={subCategoryOptions}
-                placeholder={selectedMainCategoryId ? "Type to search or press Enter to add new" : "Select category first"}
-                disabled={!selectedMainCategoryId}
-              />
-              <AutocompleteInput
-                id="application"
-                label="Application"
-                value={formData.application || ''}
-                onChange={(value) => handleChange('application', value)}
-                onAddNew={handleAddApplication}
-                options={applicationOptions}
-                placeholder={formData.subCategory && formData.subCategory.trim() !== '' ? "Type to search or press Enter to add new" : "Please select a sub-category first"}
-                disabled={!formData.subCategory || formData.subCategory.trim() === ''}
-              />
-            </div>
-          </div>
-
-          {/* Specifications Section */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="hsCode" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">HS Code</Label>
-                <Input
-                  id="hsCode"
-                  value={formData.hsCode || ''}
-                  onChange={(e) => handleChange('hsCode', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="Enter HS code"
+          <div className="space-y-2 sm:space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 sm:gap-4 md:gap-5 w-full">
+              <div className="w-full min-w-0">
+                <AutocompleteInput
+                  id="mainCategory"
+                  label="Category"
+                  value={formData.mainCategory || ''}
+                  onChange={(value) => handleChange('mainCategory', value)}
+                  onAddNew={handleAddCategory}
+                  options={categoryOptions}
+                  placeholder="Type to search or press Enter to add new"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="uom" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">UOM (A-Z)</Label>
-                <AnimatedSelect
-                  value={formData.uom || 'NOS'}
-                  onChange={(value) => handleChange('uom', value)}
-                  options={UOM_OPTIONS.map((uom) => ({ value: uom, label: uom }))}
-                  placeholder="Select UOM"
-                  className="h-11"
+              <div className="w-full min-w-0">
+                <AutocompleteInput
+                  id="subCategory"
+                  label="Sub Category"
+                  value={formData.subCategory || ''}
+                  onChange={(value) => handleChange('subCategory', value)}
+                  onAddNew={handleAddSubCategory}
+                  options={subCategoryOptions}
+                  placeholder={selectedMainCategoryId ? "Type to search or press Enter to add new" : "Select category first"}
+                  disabled={!selectedMainCategoryId}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="weight" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Weight (Kg)</Label>
-                <Input
-                  id="weight"
-                  type="number"
-                  step="0.01"
-                  value={formData.weight || ''}
-                  onChange={(e) => handleChange('weight', e.target.value ? parseFloat(e.target.value) : undefined)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder=""
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Pricing & Inventory Section */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="reOrderLevel" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Re-Order Level</Label>
-                <Input
-                  id="reOrderLevel"
-                  type="number"
-                  value={formData.reOrderLevel || 0}
-                  onChange={(e) => handleChange('reOrderLevel', parseInt(e.target.value) || 0)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cost" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Cost</Label>
-                <Input
-                  id="cost"
-                  type="number"
-                  step="0.01"
-                  value={formData.cost || ''}
-                  onChange={(e) => handleChange('cost', e.target.value ? parseFloat(e.target.value) : undefined)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="priceA" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Price-A</Label>
-                <Input
-                  id="priceA"
-                  type="number"
-                  step="0.01"
-                  value={formData.priceA || ''}
-                  onChange={(e) => handleChange('priceA', e.target.value ? parseFloat(e.target.value) : undefined)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="priceB" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Price-B</Label>
-                <Input
-                  id="priceB"
-                  type="number"
-                  step="0.01"
-                  value={formData.priceB || ''}
-                  onChange={(e) => handleChange('priceB', e.target.value ? parseFloat(e.target.value) : undefined)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="priceM" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Price-M</Label>
-                <Input
-                  id="priceM"
-                  type="number"
-                  step="0.01"
-                  value={formData.priceM || ''}
-                  onChange={(e) => handleChange('priceM', e.target.value ? parseFloat(e.target.value) : undefined)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Location & Status Section */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="rackNo" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Rack No</Label>
-                <Input
-                  id="rackNo"
-                  value={formData.rackNo || ''}
-                  onChange={(e) => handleChange('rackNo', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="Enter rack number"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="origin" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Origin</Label>
-                <AnimatedSelect
-                  value={formData.origin || ''}
-                  onChange={(value) => handleChange('origin', value)}
-                  options={[
-                    { value: '', label: 'Select Origin' },
-                    ...ORIGIN_OPTIONS.map((origin) => ({ value: origin, label: origin }))
-                  ]}
-                  placeholder="Select Origin"
-                  className="h-11"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="grade" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Grade (A/B/C/D)</Label>
-                <AnimatedSelect
-                  value={formData.grade || 'B'}
-                  onChange={(value) => handleChange('grade', value)}
-                  options={GRADE_OPTIONS.map((grade) => ({ value: grade, label: grade }))}
-                  placeholder="Select Grade"
-                  className="h-11"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="status" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Status (A/N)</Label>
-                <AnimatedSelect
-                  value={formData.status || 'A'}
-                  onChange={(value) => handleChange('status', value)}
-                  options={STATUS_OPTIONS.map((status) => ({ value: status, label: status }))}
-                  placeholder="Select Status"
-                  className="h-11"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="smc" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">SMC</Label>
-                <Input
-                  id="smc"
-                  value={formData.smc || ''}
-                  onChange={(e) => handleChange('smc', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="Enter SMC"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="size" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Size</Label>
-                <Input
-                  id="size"
-                  value={formData.size || ''}
-                  onChange={(e) => handleChange('size', e.target.value)}
-                  className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 h-11"
-                  placeholder="LxHxW"
+              <div className="w-full min-w-0">
+                <AutocompleteInput
+                  id="application"
+                  label="Application"
+                  value={formData.application || ''}
+                  onChange={(value) => handleChange('application', value)}
+                  onAddNew={handleAddApplication}
+                  options={applicationOptions}
+                  placeholder={formData.subCategory && formData.subCategory.trim() !== '' ? "Type to search or press Enter to add new" : "Please select a sub-category first"}
+                  disabled={!formData.subCategory || formData.subCategory.trim() === ''}
                 />
               </div>
             </div>
           </div>
 
           {/* Product Images */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="imageUrl1" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">
+          <div className="space-y-2 sm:space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-1 sm:gap-4 md:gap-5 w-full">
+              <div className="space-y-1.5 sm:space-y-2 w-full min-w-0">
+                <Label htmlFor="imageUrl1" className="text-xs font-semibold text-gray-700 block h-4 sm:h-5 flex items-center">
                   Image P1
                 </Label>
                 <div className="space-y-2">
@@ -1216,7 +1129,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                           className="w-full h-auto max-h-48 object-contain"
                         />
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5 sm:gap-2">
                         <Button
                           type="button"
                           variant="outline"
@@ -1225,7 +1138,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                             const input = document.getElementById('image-upload-p1') as HTMLInputElement;
                             input?.click();
                           }}
-                          className="flex-1 border-gray-300 text-xs"
+                          className="flex-1 border-gray-300 text-xs px-2 sm:px-3 py-1.5 h-8 sm:h-9"
                         >
                           Change
                         </Button>
@@ -1234,14 +1147,14 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                           variant="outline"
                           size="sm"
                           onClick={() => handleChange('imageUrl1', undefined)}
-                          className="border-red-300 text-red-600 hover:bg-red-50 text-xs"
+                          className="border-red-300 text-red-600 hover:bg-red-50 text-xs px-2 sm:px-3 py-1.5 h-8 sm:h-9"
                         >
                           Remove
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 sm:p-4 text-center">
                       <input
                         id="image-upload-p1"
                         type="file"
@@ -1249,9 +1162,9 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                         className="hidden"
                         onChange={(e) => handleImageUpload(e, 'imageUrl1')}
                       />
-                      <div className="space-y-2">
-                        <div className="mx-auto w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="space-y-1.5 sm:space-y-2">
+                        <div className="mx-auto w-6 h-6 sm:w-8 sm:h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                         </div>
@@ -1263,7 +1176,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                             const input = document.getElementById('image-upload-p1') as HTMLInputElement;
                             input?.click();
                           }}
-                          className="border-gray-300 text-xs"
+                          className="border-gray-300 text-xs px-2 sm:px-3 py-1.5 h-8 sm:h-9"
                         >
                           Upload Image P1
                         </Button>
@@ -1272,8 +1185,8 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                   )}
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="imageUrl2" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">
+              <div className="space-y-1.5 sm:space-y-2 w-full min-w-0">
+                <Label htmlFor="imageUrl2" className="text-xs font-semibold text-gray-700 block h-4 sm:h-5 flex items-center">
                   Image P2
                 </Label>
                 <div className="space-y-2">
@@ -1286,7 +1199,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                           className="w-full h-auto max-h-48 object-contain"
                         />
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5 sm:gap-2">
                         <Button
                           type="button"
                           variant="outline"
@@ -1295,7 +1208,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                             const input = document.getElementById('image-upload-p2') as HTMLInputElement;
                             input?.click();
                           }}
-                          className="flex-1 border-gray-300 text-xs"
+                          className="flex-1 border-gray-300 text-xs px-2 sm:px-3 py-1.5 h-8 sm:h-9"
                         >
                           Change
                         </Button>
@@ -1304,14 +1217,14 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                           variant="outline"
                           size="sm"
                           onClick={() => handleChange('imageUrl2', undefined)}
-                          className="border-red-300 text-red-600 hover:bg-red-50 text-xs"
+                          className="border-red-300 text-red-600 hover:bg-red-50 text-xs px-2 sm:px-3 py-1.5 h-8 sm:h-9"
                         >
                           Remove
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 sm:p-4 text-center">
                       <input
                         id="image-upload-p2"
                         type="file"
@@ -1319,9 +1232,9 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                         className="hidden"
                         onChange={(e) => handleImageUpload(e, 'imageUrl2')}
                       />
-                      <div className="space-y-2">
-                        <div className="mx-auto w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="space-y-1.5 sm:space-y-2">
+                        <div className="mx-auto w-6 h-6 sm:w-8 sm:h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                         </div>
@@ -1333,7 +1246,7 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
                             const input = document.getElementById('image-upload-p2') as HTMLInputElement;
                             input?.click();
                           }}
-                          className="border-gray-300 text-xs"
+                          className="border-gray-300 text-xs px-2 sm:px-3 py-1.5 h-8 sm:h-9"
                         >
                           Upload Image P2
                         </Button>
@@ -1346,15 +1259,15 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
           </div>
 
           {/* Additional Information */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="remarks" className="text-sm font-semibold text-gray-700 block h-5 flex items-center">Remarks</Label>
+          <div className="space-y-2 sm:space-y-4">
+            <div className="space-y-1 sm:space-y-2 w-full">
+              <Label htmlFor="remarks" className="text-xs font-semibold text-gray-700 block h-4 sm:h-5 flex items-center">Remarks</Label>
               <Textarea
                 id="remarks"
                 value={formData.remarks || ''}
                 onChange={(e) => handleChange('remarks', e.target.value)}
-                rows={4}
-                className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 resize-none"
+                rows={3}
+                className="border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 resize-none text-xs sm:text-sm w-full min-h-[45px] sm:min-h-[60px]"
                 placeholder="Enter any additional remarks or notes..."
               />
             </div>
@@ -1362,11 +1275,11 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
 
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-6 mt-6 border-t border-gray-200 bg-gray-50 -mx-6 -mb-6 px-6 py-4">
+          <div className="flex gap-1 sm:gap-3 pt-1.5 sm:pt-5 md:pt-6 mt-1.5 sm:mt-5 md:mt-6 border-t border-gray-200 bg-gray-50 -mx-1 sm:-mx-4 md:-mx-6 -mb-1 sm:-mb-4 md:-mb-6 px-1 sm:px-4 md:px-6 py-1 sm:py-4 w-full">
             <Button 
               type="submit" 
               disabled={loading} 
-              className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-semibold py-2.5 shadow-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-semibold py-1.5 sm:py-2 text-xs sm:text-sm shadow-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-10"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
