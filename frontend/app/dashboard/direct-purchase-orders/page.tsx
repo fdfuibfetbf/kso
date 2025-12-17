@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
 import AnimatedSelect from '@/components/ui/animated-select';
 import { useToast } from '@/components/ui/toast-provider';
 import api from '@/lib/api';
@@ -67,6 +68,9 @@ export default function DirectPurchaseOrdersPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<DirectPurchaseOrder[]>([]);
   const [availableParts, setAvailableParts] = useState<Part[]>([]);
   const [availableSuppliers, setAvailableSuppliers] = useState<Supplier[]>([]);
+  const [availableStores, setAvailableStores] = useState<any[]>([]);
+  const [availableRacks, setAvailableRacks] = useState<any[]>([]);
+  const [availableShelves, setAvailableShelves] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -78,6 +82,20 @@ export default function DirectPurchaseOrdersPage() {
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+
+  // Rack / Shelf assignment state
+  const [selectedStore, setSelectedStore] = useState<string>('');
+  const [selectedRackId, setSelectedRackId] = useState<string>('');
+  const [selectedShelfId, setSelectedShelfId] = useState<string>('');
+  const [isAddRackOpen, setIsAddRackOpen] = useState(false);
+  const [isAddShelfOpen, setIsAddShelfOpen] = useState(false);
+  const [newRackNumber, setNewRackNumber] = useState('');
+  const [newRackDescription, setNewRackDescription] = useState('');
+  const [newShelfNumber, setNewShelfNumber] = useState('');
+  const [newShelfDescription, setNewShelfDescription] = useState('');
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [rackShelfAllocations, setRackShelfAllocations] = useState<{ [key: number]: { rackId: string; shelfId: string; quantity: number; rackNo: string; shelfNo: string }[] }>({});
+  const [allocationQuantity, setAllocationQuantity] = useState<{ [key: number]: number }>({});
 
   const [formData, setFormData] = useState<DirectPurchaseOrder>({
     poNo: '',
@@ -103,6 +121,7 @@ export default function DirectPurchaseOrdersPage() {
     fetchPurchaseOrders();
     fetchParts();
     fetchSuppliers();
+    fetchStores();
   }, []);
 
   useEffect(() => {
@@ -116,19 +135,6 @@ export default function DirectPurchaseOrdersPage() {
     calculateTotals();
   }, [formData.items, formData.tax, formData.discount]);
 
-  // Prevent background scrolling when the create/edit form is open (fullscreen overlay)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!showForm) return;
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
-    };
-  }, [showForm]);
 
   const fetchPurchaseOrders = async () => {
     try {
@@ -162,6 +168,35 @@ export default function DirectPurchaseOrdersPage() {
       setAvailableSuppliers(response.data.suppliers || []);
     } catch (err) {
       console.error('Failed to fetch suppliers:', err);
+    }
+  };
+
+  const fetchStores = async () => {
+    try {
+      const response = await api.get('/stores?status=A');
+      setAvailableStores(response.data.stores || []);
+    } catch (err) {
+      console.error('Failed to fetch stores:', err);
+    }
+  };
+
+  const fetchRacks = async (storeId?: string) => {
+    try {
+      const params = storeId ? `?storeId=${storeId}&status=A` : '?status=A';
+      const response = await api.get(`/racks${params}`);
+      setAvailableRacks(response.data.racks || []);
+    } catch (err) {
+      console.error('Failed to fetch racks:', err);
+    }
+  };
+
+  const fetchShelves = async (rackId?: string) => {
+    try {
+      const params = rackId ? `?rackId=${encodeURIComponent(rackId)}&status=A` : '?status=A';
+      const response = await api.get(`/shelves${params}`);
+      setAvailableShelves(response.data.shelves || []);
+    } catch (err) {
+      console.error('Failed to fetch shelves:', err);
     }
   };
 
@@ -258,6 +293,64 @@ export default function DirectPurchaseOrdersPage() {
     }
     
     setFormData(prev => ({ ...prev, items: updated }));
+    calculateTotals();
+  };
+
+  const addRackShelfAllocation = (itemIndex: number) => {
+    if (!selectedRackId || !selectedShelfId) {
+      showToast('Please select both rack and shelf', 'error');
+      return;
+    }
+    const qty = allocationQuantity[itemIndex] || 0;
+    if (qty <= 0) {
+      showToast('Please enter a quantity', 'error');
+      return;
+    }
+    
+    const item = formData.items[itemIndex];
+    const allocatedQty = (rackShelfAllocations[itemIndex] || []).reduce((sum, alloc) => sum + alloc.quantity, 0);
+    const remainingQty = item.quantity - allocatedQty;
+    
+    if (qty > remainingQty) {
+      showToast(`Only ${remainingQty} quantity remaining to allocate`, 'error');
+      return;
+    }
+
+    const rack = availableRacks.find((r: any) => String(r.id) === String(selectedRackId));
+    const shelf = availableShelves.find((s: any) => String(s.id) === String(selectedShelfId));
+    const rackNo = rack?.rackNumber || rack?.rack_number || rack?.name || '';
+    const shelfNo = shelf?.shelfNumber || shelf?.shelf_number || shelf?.name || '';
+
+    setRackShelfAllocations(prev => ({
+      ...prev,
+      [itemIndex]: [
+        ...(prev[itemIndex] || []),
+        {
+          rackId: selectedRackId,
+          shelfId: selectedShelfId,
+          quantity: qty,
+          rackNo,
+          shelfNo,
+        },
+      ],
+    }));
+    setAllocationQuantity(prev => ({ ...prev, [itemIndex]: 0 }));
+    setSelectedRackId('');
+    setSelectedShelfId('');
+    setSelectedItemIndex(null);
+  };
+
+  const removeRackShelfAllocation = (itemIndex: number, allocIndex: number) => {
+    setRackShelfAllocations(prev => {
+      const updated = { ...prev };
+      if (updated[itemIndex]) {
+        updated[itemIndex] = updated[itemIndex].filter((_, i) => i !== allocIndex);
+        if (updated[itemIndex].length === 0) {
+          delete updated[itemIndex];
+        }
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -410,6 +503,14 @@ export default function DirectPurchaseOrdersPage() {
       items: [],
     });
     setSelectedPO(null);
+    setSelectedStore('');
+    setSelectedRackId('');
+    setSelectedShelfId('');
+    setRackShelfAllocations({});
+    setAllocationQuantity({});
+    setSelectedItemIndex(null);
+    setIsAddRackOpen(false);
+    setIsAddShelfOpen(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -628,25 +729,24 @@ export default function DirectPurchaseOrdersPage() {
         </Card>
       )}
 
-      {/* Form */}
+      {/* Form - Inline (not modal) */}
       {showForm && !receivingPO && (
-        <div className="fixed inset-0 z-[220] bg-black/40 flex items-start justify-center p-2 sm:p-4 overflow-y-auto">
-          <Card className="w-[min(98vw,90rem)] max-h-[92vh] shadow-2xl flex flex-col overflow-hidden border-2 border-primary-200 animate-fade-in">
-            <CardHeader className="bg-gradient-to-r from-primary-50 to-orange-50 border-b flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xl">
-                  {selectedPO ? 'Edit Direct Purchase Order' : 'Create New Direct Purchase Order'}
-                </CardTitle>
-                <Button variant="ghost" onClick={() => { setShowForm(false); resetForm(); }}>
-                  ✕
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 flex-1 overflow-y-auto">
-              <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Main Direct Purchase Order Fields - Professional Single Line Layout */}
+        <Card className="shadow-lg border-2 border-primary-200 animate-fade-in">
+          <CardHeader className="bg-gradient-to-r from-primary-50 to-orange-50 border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl">
+                {selectedPO ? 'Edit Direct Purchase Order' : 'Add Direct Purchase Order'}
+              </CardTitle>
+              <Button variant="ghost" onClick={() => { setShowForm(false); resetForm(); }}>
+                ✕
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Purchase Order Details Section */}
               <div className="bg-gray-50 p-4 rounded-lg border">
-                <div className="grid grid-cols-6 gap-6 items-start">
+                <div className="grid grid-cols-4 gap-6 items-start">
                   <div className="space-y-2">
                     <Label htmlFor="poNo" className="text-sm font-medium text-gray-700 block">
                       PO NO
@@ -660,176 +760,150 @@ export default function DirectPurchaseOrdersPage() {
                       title="PO Number is auto-generated and cannot be edited"
                       placeholder="Loading..."
                     />
-                    <p className="text-xs text-gray-500">Auto-generated</p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="supplierId" className="text-sm font-medium text-gray-700 block">
-                      Supplier
-                    </Label>
-                    <div className="flex gap-2">
-                      <Select
-                        id="supplierId"
-                        value={formData.supplierId || ''}
-                        onChange={(e) => handleSupplierChange(e.target.value)}
-                        className="flex-1"
-                        required
-                      >
-                        <option value="">Select...</option>
-                        {availableSuppliers.map((supplier) => (
-                          <option key={supplier.id} value={supplier.id}>
-                            {supplier.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <p className="text-xs text-red-500">Required</p>
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="orderDate" className="text-sm font-medium text-gray-700 block">
                       Request Date
                     </Label>
-                    <Input
-                      id="orderDate"
-                      type="date"
-                      value={formData.orderDate}
-                      onChange={(e) => setFormData({ ...formData, orderDate: e.target.value })}
-                      required
-                      className="w-full"
+                    <DatePicker
+                      value={formData.orderDate || undefined}
+                      onChange={(v) => setFormData({ ...formData, orderDate: v || '' })}
+                      placeholder="Select date"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="paymentMethod" className="text-sm font-medium text-gray-700 block">
-                      Account
+                    <Label htmlFor="store" className="text-sm font-medium text-gray-700 block">
+                      Store
                     </Label>
-                    <Select
-                      id="paymentMethod"
-                      value={formData.paymentMethod || ''}
-                      onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as any || undefined })}
-                      className="w-full"
-                      required
-                    >
-                      <option value="">Select...</option>
-                      <option value="cash">Cash</option>
-                      <option value="bank_transfer">Bank Transfer</option>
-                      <option value="cheque">Cheque</option>
-                      <option value="credit_card">Credit Card</option>
-                      <option value="other">Other</option>
-                    </Select>
-                    <p className="text-xs text-red-500">Required</p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="totalAmount" className="text-sm font-medium text-gray-700 block">
-                      Total
-                    </Label>
-                    <Input
-                      id="totalAmount"
-                      value={formData.totalAmount.toFixed(2)}
-                      readOnly
-                      disabled
-                      className="w-full bg-gray-100 cursor-not-allowed"
-                    />
+                    <div className="flex gap-2">
+                      <Select
+                        id="store"
+                        value={selectedStore}
+                        onChange={(e) => {
+                          const storeId = e.target.value;
+                          setSelectedStore(storeId);
+                          setSelectedRackId('');
+                          setSelectedShelfId('');
+                          setAvailableShelves([]);
+                          if (storeId) {
+                            fetchRacks(storeId);
+                          } else {
+                            setAvailableRacks([]);
+                          }
+                        }}
+                        className="flex-1"
+                      >
+                        <option value="">Select...</option>
+                        {availableStores.map((store: any) => (
+                          <option key={store.id || store.name} value={String(store.id || store.name)}>
+                            {store.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="notes" className="text-sm font-medium text-gray-700 block">
-                      Remarks
+                      Description
                     </Label>
                     <Input
                       id="notes"
                       value={formData.notes || ''}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      placeholder="Enter remarks..."
+                      placeholder="Enter description..."
                       className="w-full"
                     />
+                    <span className="text-green-500 text-xs">✓</span>
                   </div>
                 </div>
               </div>
 
-              {/* Item Parts Section - Professional Table Layout */}
-              <div className="mt-8">
+              {/* Item Parts Section */}
+              <div className="mt-6">
                 <div className="bg-white border rounded-lg overflow-hidden">
-                  {/* Table Header with Add New Item Button */}
                   <div className="bg-gray-100 p-4 border-b">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-medium text-gray-800">Item Parts</h3>
-                      <Button 
-                        type="button" 
-                        onClick={addItem} 
-                        disabled={formData.items.length >= 20}
-                        className="bg-blue-500 hover:bg-blue-600 text-white border-0 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 font-medium rounded-lg"
-                      >
-                        + Add New Item
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 font-medium text-gray-700 text-sm">
-                      <div>Item Parts</div>
-                      <div>Quantity</div>
-                      <div>Remarks</div>
-                      <div className="text-center">Remove</div>
-                    </div>
+                    <h3 className="text-lg font-medium text-gray-800">Item Parts</h3>
                   </div>
-
-                  {/* Table Body */}
                   <div className="divide-y divide-gray-200">
                     {formData.items.map((item, index) => (
-                      <div key={index} className="grid grid-cols-4 gap-4 p-4 hover:bg-gray-50 transition-colors">
-                        <div>
-                          <Select
-                            value={item.partId || ''}
-                            onChange={(e) => updateItem(index, 'partId', e.target.value)}
-                            className="w-full"
-                          >
-                            <option value="">Select...</option>
-                            {availableParts.map((part) => (
-                              <option key={part.id} value={part.id}>
-                                {[
-                                  part.partNo,
-                                  part.application,
-                                  part.brand,
-                                  part.description ? part.description.substring(0, 40) : undefined,
-                                ]
-                                  .filter(Boolean)
-                                  .join(' - ') || 'No part info'}
-                              </option>
-                            ))}
-                          </Select>
-                          <p className="text-xs text-red-500 mt-1">Required!</p>
-                        </div>
-                        
-                        <div>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                            required
-                            className="w-full"
-                            placeholder="1"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Input
-                            value={item.description || ''}
-                            onChange={(e) => updateItem(index, 'description', e.target.value)}
-                            placeholder="Enter remarks..."
-                            className="w-full bg-green-50 border-green-200 focus:bg-green-100 focus:border-green-300"
-                          />
-                        </div>
-                        
-                        <div className="flex justify-center">
-                          <Button
-                            type="button"
-                            onClick={() => removeItem(index)}
-                            className="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 font-bold text-lg flex items-center justify-center"
-                            title="Remove item"
-                          >
-                            ×
-                          </Button>
+                      <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
+                        <div className="grid grid-cols-5 gap-4 items-end">
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium text-gray-700">Item</Label>
+                            <div className="flex gap-2">
+                              <Select
+                                value={item.partId || ''}
+                                onChange={(e) => updateItem(index, 'partId', e.target.value)}
+                                className="flex-1"
+                              >
+                                <option value="">Select...</option>
+                                {availableParts.map((part) => (
+                                  <option key={part.id} value={part.id}>
+                                    {[
+                                      part.partNo,
+                                      part.application,
+                                      part.brand,
+                                    ]
+                                      .filter(Boolean)
+                                      .join('/') || 'No part info'}
+                                  </option>
+                                ))}
+                              </Select>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium text-gray-700">Quantity</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                              required
+                              className="w-full"
+                              placeholder="1"
+                            />
+                            <span className="text-green-500 text-xs">✓</span>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium text-gray-700">Rate</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.unitPrice}
+                              onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              required
+                              className="w-full"
+                              placeholder="0.00"
+                            />
+                            <span className="text-green-500 text-xs">✓</span>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium text-gray-700">Total</Label>
+                            <Input
+                              value={item.totalPrice.toFixed(2)}
+                              readOnly
+                              disabled
+                              className="w-full bg-gray-100 cursor-not-allowed"
+                            />
+                          </div>
+                          
+                          <div className="flex justify-center">
+                            <Button
+                              type="button"
+                              onClick={() => removeItem(index)}
+                              className="w-9 h-9 rounded-full bg-red-500 hover:bg-red-600 text-white border-0 shadow-md hover:shadow-lg transition-all flex items-center justify-center p-0"
+                              title="Remove item"
+                            >
+                              <span className="text-lg font-bold">×</span>
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -837,51 +911,420 @@ export default function DirectPurchaseOrdersPage() {
                     {/* Empty State */}
                     {formData.items.length === 0 && (
                       <div className="p-8 text-center text-gray-500">
-                        <div className="text-gray-400 mb-2">
-                          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                          </svg>
-                        </div>
                         <p>No items added yet</p>
-                        <p className="text-sm">Click "Add New Item" to add items to this direct purchase order</p>
+                        <p className="text-sm">Click "Add New Item" to add items</p>
                       </div>
                     )}
                   </div>
                 </div>
+              </div>
 
-                {/* Status Information */}
-                {formData.items.length >= 20 && (
-                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-sm text-yellow-700">Maximum 20 items allowed per direct purchase order</p>
+              {/* Rack and Shelves Section */}
+              <div className="mt-6 border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-800">Rack and Shelves</h3>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsAddRackOpen((v) => !v);
+                        setIsAddShelfOpen(false);
+                      }}
+                    >
+                      + Add New Rack
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsAddShelfOpen((v) => !v);
+                        setIsAddRackOpen(false);
+                      }}
+                    >
+                      + Add New Shelf
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Inline Add Rack */}
+                {isAddRackOpen && (
+                  <div className="mb-4 rounded-lg border bg-gray-50 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-sm font-semibold text-gray-900">Add New Rack</div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsAddRackOpen(false);
+                          setNewRackNumber('');
+                          setNewRackDescription('');
+                        }}
+                        className="px-2"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-gray-700">Store *</Label>
+                        <Select value={selectedStore} onChange={(e) => setSelectedStore(e.target.value)} className="w-full">
+                          <option value="">Select Store...</option>
+                          {availableStores.map((store: any) => (
+                            <option key={store.id || store.name} value={String(store.id || store.name)}>
+                              {store.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-gray-700">Rack Number *</Label>
+                        <Input value={newRackNumber} onChange={(e) => setNewRackNumber(e.target.value)} placeholder="e.g. R001" className="w-full" />
+                      </div>
+                      <div className="space-y-1 md:col-span-3">
+                        <Label className="text-xs font-medium text-gray-700">Description</Label>
+                        <Textarea value={newRackDescription} onChange={(e) => setNewRackDescription(e.target.value)} rows={2} className="w-full resize-y" />
+                      </div>
+                      <div className="md:col-span-3 flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setNewRackNumber('');
+                            setNewRackDescription('');
+                            setIsAddRackOpen(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={async () => {
+                            if (!selectedStore) {
+                              showToast('Please select a store.', 'error');
+                              return;
+                            }
+                            if (!newRackNumber.trim()) {
+                              showToast('Rack number is required.', 'error');
+                              return;
+                            }
+                            try {
+                              setLoading(true);
+                              const resp = await api.post('/racks', {
+                                rackNumber: newRackNumber.trim(),
+                                storeId: String(selectedStore),
+                                description: newRackDescription.trim() || undefined,
+                                status: 'A',
+                              });
+                              const created = resp.data?.rack;
+                              await fetchRacks(String(selectedStore));
+                              if (created?.id) setSelectedRackId(String(created.id));
+                              setNewRackNumber('');
+                              setNewRackDescription('');
+                              setIsAddRackOpen(false);
+                              showToast('Rack created successfully', 'success');
+                            } catch (err: any) {
+                              showToast(err?.response?.data?.error || 'Failed to create rack', 'error');
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          disabled={loading}
+                          className="bg-primary-500 hover:bg-primary-600 text-white"
+                        >
+                          {loading ? 'Saving...' : 'Save Rack'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Inline Add Shelf */}
+                {isAddShelfOpen && (
+                  <div className="mb-4 rounded-lg border bg-gray-50 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-sm font-semibold text-gray-900">Add New Shelf</div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsAddShelfOpen(false);
+                          setNewShelfNumber('');
+                          setNewShelfDescription('');
+                        }}
+                        className="px-2"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-gray-700">Rack *</Label>
+                        <Select
+                          value={selectedRackId}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setSelectedRackId(v);
+                            setSelectedShelfId('');
+                            if (v) fetchShelves(v);
+                          }}
+                          className="w-full"
+                        >
+                          <option value="">Select Rack...</option>
+                          {(availableRacks || []).map((r: any) => (
+                            <option key={r.id} value={String(r.id)}>
+                              {r.rackNumber || r.rack_number || r.name || r.id}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-gray-700">Shelf Number *</Label>
+                        <Input value={newShelfNumber} onChange={(e) => setNewShelfNumber(e.target.value)} placeholder="e.g. S001" className="w-full" />
+                      </div>
+                      <div className="space-y-1 md:col-span-3">
+                        <Label className="text-xs font-medium text-gray-700">Description</Label>
+                        <Textarea value={newShelfDescription} onChange={(e) => setNewShelfDescription(e.target.value)} rows={2} className="w-full resize-y" />
+                      </div>
+                      <div className="md:col-span-3 flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setNewShelfNumber('');
+                            setNewShelfDescription('');
+                            setIsAddShelfOpen(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={async () => {
+                            if (!selectedRackId) {
+                              showToast('Please select a rack.', 'error');
+                              return;
+                            }
+                            if (!newShelfNumber.trim()) {
+                              showToast('Shelf number is required.', 'error');
+                              return;
+                            }
+                            try {
+                              setLoading(true);
+                              const resp = await api.post('/shelves', {
+                                shelfNumber: newShelfNumber.trim(),
+                                rackId: String(selectedRackId),
+                                description: newShelfDescription.trim() || undefined,
+                                status: 'A',
+                              });
+                              const created = resp.data?.shelf;
+                              await fetchShelves(String(selectedRackId));
+                              if (created?.id) setSelectedShelfId(String(created.id));
+                              setNewShelfNumber('');
+                              setNewShelfDescription('');
+                              setIsAddShelfOpen(false);
+                              showToast('Shelf created successfully', 'success');
+                            } catch (err: any) {
+                              showToast(err?.response?.data?.error || 'Failed to create shelf', 'error');
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          disabled={loading}
+                          className="bg-primary-500 hover:bg-primary-600 text-white"
+                        >
+                          {loading ? 'Saving...' : 'Save Shelf'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rack/Shelf Allocation */}
+                {formData.items.length > 0 && selectedItemIndex !== null && (
+                  <div className="border rounded-lg p-4 bg-gray-50">
+                    <div className="text-sm font-medium text-gray-700 mb-3">
+                      Item: {formData.items[selectedItemIndex]?.partNo || `Item ${selectedItemIndex + 1}`}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-gray-700">Rack</Label>
+                        <Select
+                          value={selectedRackId}
+                          onChange={(e) => {
+                            const nextRackId = e.target.value;
+                            setSelectedRackId(nextRackId);
+                            setSelectedShelfId('');
+                            if (nextRackId) fetchShelves(nextRackId);
+                            else setAvailableShelves([]);
+                          }}
+                          className="w-full"
+                        >
+                          <option value="">Select Rack...</option>
+                          {(availableRacks || []).map((r: any) => (
+                            <option key={r.id} value={String(r.id)}>
+                              {r.rackNumber || r.rack_number || r.name || r.id}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-gray-700">Shelf</Label>
+                        <Select
+                          value={selectedShelfId}
+                          onChange={(e) => setSelectedShelfId(e.target.value)}
+                          className="w-full"
+                          disabled={!selectedRackId}
+                        >
+                          <option value="">{selectedRackId ? 'Select Shelf...' : 'Select rack first'}</option>
+                          {(availableShelves || []).map((s: any) => (
+                            <option key={s.id} value={String(s.id)}>
+                              {s.shelfNumber || s.shelf_number || s.name || s.id}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-gray-700">Quantity</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max={formData.items[selectedItemIndex]?.quantity - ((rackShelfAllocations[selectedItemIndex] || []).reduce((sum, alloc) => sum + alloc.quantity, 0))}
+                          value={allocationQuantity[selectedItemIndex] || ''}
+                          onChange={(e) => setAllocationQuantity(prev => ({ ...prev, [selectedItemIndex]: parseInt(e.target.value) || 0 }))}
+                          className="w-full"
+                          placeholder="Qty"
+                        />
+                      </div>
+                      <div>
+                        <Button
+                          type="button"
+                          className="bg-green-500 hover:bg-green-600 text-white"
+                          size="sm"
+                          onClick={() => addRackShelfAllocation(selectedItemIndex)}
+                        >
+                          + Add
+                        </Button>
+                      </div>
+                    </div>
+                    {/* Display allocations for selected item */}
+                    {rackShelfAllocations[selectedItemIndex] && rackShelfAllocations[selectedItemIndex].length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {rackShelfAllocations[selectedItemIndex].map((alloc, allocIndex) => (
+                          <div key={allocIndex} className="flex items-center justify-between bg-white p-2 rounded border">
+                            <span className="text-sm">
+                              {alloc.rackNo} / {alloc.shelfNo} - Qty: {alloc.quantity}
+                            </span>
+                            <Button
+                              type="button"
+                              onClick={() => removeRackShelfAllocation(selectedItemIndex, allocIndex)}
+                              className="w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs p-0"
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Item selector for rack/shelf allocation */}
+                {formData.items.length > 0 && selectedItemIndex === null && (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-600 mb-2">Select an item to assign rack and shelf:</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {formData.items.map((item, idx) => (
+                        <Button
+                          key={idx}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedItemIndex(idx);
+                            setSelectedRackId('');
+                            setSelectedShelfId('');
+                            setAvailableShelves([]);
+                            if (selectedStore) fetchRacks(selectedStore);
+                          }}
+                        >
+                          {item.partNo || `Item ${idx + 1}`}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Action Buttons - Professional Layout */}
-              <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-200">
-                <div className="text-sm text-gray-500">
-                  {formData.items.length === 0 ? (
-                    "Please add at least one item to save the direct purchase order"
-                  ) : (
-                    `${formData.items.length} item${formData.items.length > 1 ? 's' : ''} added`
-                  )}
-                </div>
-                
-                <div className="flex gap-3">
-                  <Button 
-                    type="button" 
-                    onClick={() => {
-                      resetForm();
-                      setError('');
-                      setSuccess('');
-                    }}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 font-medium rounded-lg border-0"
+              {/* Add New Item Button */}
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  onClick={addItem}
+                  disabled={formData.items.length >= 20}
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 font-medium rounded-lg border-0"
+                >
+                  + Add New Item
+                </Button>
+              </div>
+
+              {/* Account and Total Section */}
+              <div className="flex justify-end gap-6 items-end">
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod" className="text-sm font-medium text-gray-700 block">
+                    Account
+                  </Label>
+                  <Select
+                    id="paymentMethod"
+                    value={formData.paymentMethod || ''}
+                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as any || undefined })}
+                    className="w-full"
+                    required
                   >
-                    Reset
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={loading || formData.items.length === 0 || !formData.supplierId || !formData.paymentMethod} 
+                    <option value="">Select...</option>
+                    <option value="cash">Cash</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="other">Other</option>
+                  </Select>
+                  <p className="text-xs text-red-500">Required</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="totalAmount" className="text-sm font-medium text-gray-700 block">
+                    Total
+                  </Label>
+                  <Input
+                    id="totalAmount"
+                    value={formData.totalAmount.toFixed(2)}
+                    readOnly
+                    disabled
+                    className="w-full bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-200">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    resetForm();
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 font-medium rounded-lg border-0"
+                >
+                  Reset
+                </Button>
+                <div className="flex gap-3">
+                  <Button
+                    type="submit"
+                    disabled={loading || formData.items.length === 0 || !formData.paymentMethod}
                     className="bg-green-600 hover:bg-green-700 text-white px-8 py-2 flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium rounded-lg border-0"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -891,14 +1334,25 @@ export default function DirectPurchaseOrdersPage() {
                   </Button>
                 </div>
               </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    resetForm();
+                  }}
+                  className="text-sm text-gray-600 hover:text-gray-800 underline"
+                >
+                  Close
+                </button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
       {/* Direct Purchase Orders List */}
-      {!receivingPO && !showForm && (
+      {!receivingPO && (
       <Card className="shadow-lg">
         <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b">
           <div className="flex flex-wrap items-center gap-4">
