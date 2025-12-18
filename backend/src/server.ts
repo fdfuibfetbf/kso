@@ -19,6 +19,8 @@ import partsManagementRoutes from './routes/parts-management';
 import racksRoutes from './routes/racks';
 import brandsRoutes from './routes/brands';
 import accountsRoutes from './routes/accounts';
+import vouchersRoutes from './routes/vouchers';
+import reportsRoutes from './routes/reports';
 
 dotenv.config();
 
@@ -55,6 +57,8 @@ app.use('/api/parts-management', partsManagementRoutes);
 app.use('/api/racks', racksRoutes);
 app.use('/api/brands', brandsRoutes);
 app.use('/api/accounts', accountsRoutes);
+app.use('/api/vouchers', vouchersRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // Also handle routes without /api prefix (for Vercel routing)
 app.use('/auth', authRoutes);
@@ -75,6 +79,8 @@ app.use('/parts-management', partsManagementRoutes);
 app.use('/racks', racksRoutes);
 app.use('/brands', brandsRoutes);
 app.use('/accounts', accountsRoutes);
+app.use('/vouchers', vouchersRoutes);
+app.use('/reports', reportsRoutes);
 
 // Health check
 app.get('/api/health', async (req, res) => {

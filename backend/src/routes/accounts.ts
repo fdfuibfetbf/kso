@@ -1,7 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
+import { verifyToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
+
+// Apply authentication to all routes
+router.use(verifyToken);
 
 // ============================================
 // MAIN GROUPS
@@ -315,6 +319,27 @@ router.post('/accounts/bulk-delete', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to delete accounts' });
   }
 });
+
+// ============================================
+// COA (Chart of Accounts) Routes
+// ============================================
+import { CoaAccountController } from '../controllers/coaAccount.controller';
+
+// COA Groups
+router.get('/coa-groups', CoaAccountController.getCoaGroups);
+router.post('/coa-groups', CoaAccountController.createCoaGroup);
+router.get('/coa-sub-groups', CoaAccountController.getCoaSubGroups);
+router.post('/coa-sub-groups', CoaAccountController.createCoaSubGroup);
+
+// COA Accounts
+router.get('/coa-accounts', CoaAccountController.index);
+router.post('/coa-accounts', CoaAccountController.store);
+router.put('/coa-accounts/:id', CoaAccountController.update);
+router.patch('/coa-accounts/toggle-status/:id', CoaAccountController.toggleStatus);
+router.get('/cash-accounts', CoaAccountController.getCashAccounts);
+router.get('/bank-accounts', CoaAccountController.getBankAccounts);
+router.get('/except-cash', CoaAccountController.getAccountsExceptCash);
+router.get('/ledger/:accountId', CoaAccountController.getAccountLedger);
 
 export default router;
 

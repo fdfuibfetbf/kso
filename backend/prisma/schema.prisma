@@ -107,15 +107,15 @@ model StoreType {
 }
 
 model Store {
-  id           String      @id @default(cuid())
-  name         String
-  storeTypeId  String
-  description  String?
-  status       String      @default("A")
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  storeType    StoreType   @relation(fields: [storeTypeId], references: [id], onDelete: Cascade)
-  racks        Rack[]
+  id              String          @id @default(cuid())
+  name            String
+  storeTypeId     String
+  description     String?
+  status          String          @default("A")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  storeType       StoreType       @relation(fields: [storeTypeId], references: [id], onDelete: Cascade)
+  racks           Rack[]
   itemInventories ItemInventory[]
 
   @@index([name])
@@ -123,15 +123,15 @@ model Store {
 }
 
 model Rack {
-  id          String   @id @default(cuid())
-  rackNumber  String
-  storeId     String
-  description String?
-  status      String   @default("A")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  shelves     Shelf[]
+  id              String          @id @default(cuid())
+  rackNumber      String
+  storeId         String
+  description     String?
+  status          String          @default("A")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  shelves         Shelf[]
   itemInventories ItemInventory[]
 
   @@unique([rackNumber, storeId])
@@ -139,14 +139,14 @@ model Rack {
 }
 
 model Shelf {
-  id          String   @id @default(cuid())
-  shelfNumber String
-  rackId      String
-  description String?
-  status      String   @default("A")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  rack        Rack     @relation(fields: [rackId], references: [id], onDelete: Cascade)
+  id              String          @id @default(cuid())
+  shelfNumber     String
+  rackId          String
+  description     String?
+  status          String          @default("A")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  rack            Rack            @relation(fields: [rackId], references: [id], onDelete: Cascade)
   itemInventories ItemInventory[]
 
   @@unique([shelfNumber, rackId])
@@ -166,11 +166,11 @@ model Brand {
 }
 
 model Unit {
-  id          String      @id @default(cuid())
-  name        String      @unique
-  shortName   String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id           String        @id @default(cuid())
+  name         String        @unique
+  shortName    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   machineParts MachinePart[]
 
   @@index([name])
@@ -187,25 +187,25 @@ model MachineModel {
 }
 
 model MachinePart {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  unitId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  unit      Unit     @relation(fields: [unitId], references: [id])
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  unitId              String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  unit                Unit                 @relation(fields: [unitId], references: [id])
   machinePartOemParts MachinePartOemPart[]
-  kitchilds KitChild[]
+  kitchilds           KitChild[]
 
   @@index([name])
   @@index([unitId])
 }
 
 model OemPartNumber {
-  id        String   @id @default(cuid())
-  number1   String
-  number2   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String               @id @default(cuid())
+  number1             String
+  number2             String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
   machinePartOemParts MachinePartOemPart[]
 
   @@unique([number1, number2])
@@ -213,14 +213,14 @@ model OemPartNumber {
 }
 
 model MachinePartOemPart {
-  id             String        @id @default(cuid())
-  machinePartId  String
+  id              String        @id @default(cuid())
+  machinePartId   String
   oemPartNumberId String
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  machinePart    MachinePart   @relation(fields: [machinePartId], references: [id], onDelete: Cascade)
-  oemPartNumber  OemPartNumber @relation(fields: [oemPartNumberId], references: [id], onDelete: Cascade)
-  items          Item[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  machinePart     MachinePart   @relation(fields: [machinePartId], references: [id], onDelete: Cascade)
+  oemPartNumber   OemPartNumber @relation(fields: [oemPartNumberId], references: [id], onDelete: Cascade)
+  items           Item[]
 
   @@unique([machinePartId, oemPartNumberId])
   @@index([machinePartId])
@@ -228,20 +228,20 @@ model MachinePartOemPart {
 }
 
 model Item {
-  id                    String                 @id @default(cuid())
-  machinePartOemPartId  String
-  brandId               String
-  machineModelId        String
-  typeId                Int                    @default(1) // 1 = parts, 2 = kits
-  status                String                 @default("A")
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  machinePartOemPart    MachinePartOemPart     @relation(fields: [machinePartOemPartId], references: [id], onDelete: Cascade)
-  brand                 Brand                  @relation(fields: [brandId], references: [id])
-  machineModel          MachineModel           @relation(fields: [machineModelId], references: [id])
-  inventories           ItemInventory[]
-  kitItems              KitChild[]             @relation("KitChild_Kit")
-  childItems            KitChild[]             @relation("KitChild_Child")
+  id                   String             @id @default(cuid())
+  machinePartOemPartId String
+  brandId              String
+  machineModelId       String
+  typeId               Int                @default(1) // 1 = parts, 2 = kits
+  status               String             @default("A")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  machinePartOemPart   MachinePartOemPart @relation(fields: [machinePartOemPartId], references: [id], onDelete: Cascade)
+  brand                Brand              @relation(fields: [brandId], references: [id])
+  machineModel         MachineModel       @relation(fields: [machineModelId], references: [id])
+  inventories          ItemInventory[]
+  kitItems             KitChild[]         @relation("KitChild_Kit")
+  childItems           KitChild[]         @relation("KitChild_Child")
 
   @@index([machinePartOemPartId])
   @@index([brandId])
@@ -273,15 +273,15 @@ model ItemInventory {
 
 // Updated Kit models to work with new Item structure
 model KitChild {
-  id            String      @id @default(cuid())
+  id            String       @id @default(cuid())
   kitItemId     String
   childItemId   String
   machinePartId String?
-  quantity      Int         @default(1)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  kitItem       Item        @relation("KitChild_Kit", fields: [kitItemId], references: [id], onDelete: Cascade)
-  childItem     Item        @relation("KitChild_Child", fields: [childItemId], references: [id], onDelete: Cascade)
+  quantity      Int          @default(1)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  kitItem       Item         @relation("KitChild_Kit", fields: [kitItemId], references: [id], onDelete: Cascade)
+  childItem     Item         @relation("KitChild_Child", fields: [childItemId], references: [id], onDelete: Cascade)
   machinePart   MachinePart? @relation(fields: [machinePartId], references: [id], onDelete: SetNull)
 
   @@unique([kitItemId, childItemId])
@@ -296,7 +296,7 @@ model InventoryFlow {
   storeId   String
   inFlow    Int      @default(0)
   outFlow   Int      @default(0)
-  reason    String?  // "make_kit", "break_kit", "adjustment", etc.
+  reason    String? // "make_kit", "break_kit", "adjustment", etc.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -387,7 +387,7 @@ model PurchaseOrder {
   orderDate       DateTime            @default(now())
   expectedDate    DateTime?
   status          String              @default("draft")
-  paymentMethod   String?             // cash, bank_transfer, cheque, credit_card, other
+  paymentMethod   String? // cash, bank_transfer, cheque, credit_card, other
   subTotal        Float               @default(0)
   tax             Float               @default(0)
   discount        Float               @default(0)
@@ -401,6 +401,7 @@ model PurchaseOrder {
   updatedAt       DateTime            @updatedAt
   supplier        Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   items           PurchaseOrderItem[]
+  vouchers        Voucher[]           @relation("PurchaseOrderVouchers")
 
   @@index([poNo])
   @@index([status])
@@ -555,7 +556,7 @@ model Application {
   @@index([status])
 }
 
-// Accounts Management Models
+// Accounts Management Models (Legacy - keeping for backward compatibility)
 model MainGroup {
   id        String     @id @default(cuid())
   code      Int        @unique
@@ -599,4 +600,172 @@ model Account {
   @@index([code])
   @@index([name])
   @@index([status])
+}
+
+// Chart of Accounts (COA) Models - Complete Accounting System
+model CoaGroup {
+  id        Int           @id @default(autoincrement())
+  name      String
+  code      String
+  parent    String // Assets, Liabilities, Capital, Revenues, Expenses, Cost
+  userId    String?       @map("user_id")
+  isActive  Boolean       @default(true) @map("is_active")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  subGroups CoaSubGroup[]
+  accounts  CoaAccount[]
+
+  @@index([userId])
+  @@index([parent])
+  @@map("coa_groups")
+}
+
+model CoaSubGroup {
+  id         Int          @id @default(autoincrement())
+  coaGroupId Int          @map("coa_group_id")
+  name       String
+  code       String
+  type       String? // cash, bank, inventory, etc.
+  userId     String?      @map("user_id")
+  isActive   Boolean      @default(true) @map("is_active")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  coaGroup   CoaGroup     @relation(fields: [coaGroupId], references: [id], onDelete: Cascade)
+  accounts   CoaAccount[]
+
+  @@index([coaGroupId])
+  @@index([userId])
+  @@index([type])
+  @@map("coa_sub_groups")
+}
+
+model CoaAccount {
+  id            Int                  @id @default(autoincrement())
+  name          String
+  code          String
+  userId        String?              @map("user_id")
+  coaGroupId    Int                  @map("coa_group_id")
+  coaSubGroupId Int                  @map("coa_sub_group_id")
+  personId      String?              @map("person_id")
+  description   String?
+  type          String? // mouza, etc.
+  isActive      Boolean              @default(true) @map("is_active")
+  isDefault     Boolean              @default(false) @map("is_default")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+  coaGroup      CoaGroup             @relation(fields: [coaGroupId], references: [id], onDelete: Cascade)
+  coaSubGroup   CoaSubGroup          @relation(fields: [coaSubGroupId], references: [id], onDelete: Cascade)
+  transactions  VoucherTransaction[]
+
+  @@index([userId])
+  @@index([coaSubGroupId])
+  @@index([coaGroupId])
+  @@index([code])
+  @@map("coa_accounts")
+}
+
+// Person model for person-specific accounts
+model Person {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  userId    String?  @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("persons")
+}
+
+// Voucher Types
+model VoucherType {
+  id        Int      @id @default(autoincrement())
+  name      String // RV, PV, CV, JV, etc.
+  code      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("voucher_types")
+}
+
+// Vouchers (Main transaction records)
+model Voucher {
+  id              Int                  @id @default(autoincrement())
+  voucherNo       Int                  @map("voucher_no")
+  type            Int // 1-7 (Receipt, Payment, Purchase, Sales, Contra, Journal, Extended JV)
+  date            DateTime
+  name            String?
+  totalAmount     Float                @map("total_amount")
+  isApproved      Boolean              @default(false) @map("is_approved")
+  isPostDated     Int                  @default(0) @map("is_post_dated") // 0=cleared, 1=post-dated, 2=cancelled
+  chequeNo        String?              @map("cheque_no")
+  chequeDate      DateTime?            @map("cheque_date")
+  purchaseOrderId String?              @map("purchase_order_id")
+  isAuto          Boolean              @default(false) @map("is_auto") // Auto-generated from PO/Invoice
+  userId          String               @map("user_id")
+  generatedAt     DateTime             @default(now()) @map("generated_at")
+  clearedDate     DateTime?            @map("cleared_date")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  deletedAt       DateTime?            @map("deleted_at") // Soft delete
+  purchaseOrder   PurchaseOrder?       @relation("PurchaseOrderVouchers", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  transactions    VoucherTransaction[]
+
+  @@index([userId])
+  @@index([type])
+  @@index([date])
+  @@index([isApproved])
+  @@index([isPostDated])
+  @@index([purchaseOrderId])
+  @@map("vouchers")
+}
+
+// Voucher Transactions (Double-entry accounting records)
+model VoucherTransaction {
+  id           Int        @id @default(autoincrement())
+  voucherId    Int        @map("voucher_id")
+  coaAccountId Int        @map("coa_account_id")
+  debit        Float      @default(0)
+  credit       Float      @default(0)
+  balance      Float // Running balance for the account
+  description  String?
+  date         DateTime
+  userId       String     @map("user_id")
+  isApproved   Boolean    @default(false) @map("is_approved")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at") // Soft delete
+  voucher      Voucher    @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  coaAccount   CoaAccount @relation(fields: [coaAccountId], references: [id], onDelete: Cascade)
+
+  @@index([voucherId])
+  @@index([coaAccountId])
+  @@index([userId])
+  @@index([date])
+  @@index([isApproved])
+  @@map("voucher_transactions")
+}
+
+model PurchaseOrderDeletionLog {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  poNo            String
+  type            String // "purchase" or "direct"
+  deletedBy       String // User ID
+  deletedByName   String // User name
+  deletedByEmail  String // User email
+  deletedByRole   String // User role
+  ipAddress       String? // IP address from where deletion occurred
+  status          String // Status of PO when deleted
+  wasReceived     Boolean  @default(false) // Whether PO was received (stock needs reversal)
+  stockReversed   Boolean  @default(false) // Whether stock was successfully reversed
+  notes           String? // Additional notes
+  createdAt       DateTime @default(now())
+
+  @@index([purchaseOrderId])
+  @@index([poNo])
+  @@index([deletedBy])
+  @@index([createdAt])
 }

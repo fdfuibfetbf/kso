@@ -262,32 +262,10 @@ router.post('/:id/break', async (req: AuthRequest, res) => {
         throw new Error('Kit not found');
       }
 
-      // Return all items to inventory (update stock)
+      // Note: Kits are conceptual groupings and don't consume inventory when created,
+      // so breaking them doesn't need to return inventory to stock
       const returnedItems = [];
       for (const item of kit.items) {
-        // Get or create stock record for the part
-        let stock = await tx.stock.findUnique({
-          where: { partId: item.partId },
-        });
-
-        if (stock) {
-          // Update existing stock - add back the quantity
-          await tx.stock.update({
-            where: { partId: item.partId },
-            data: {
-              quantity: stock.quantity + item.quantity,
-            },
-          });
-        } else {
-          // Create new stock record if it doesn't exist
-          await tx.stock.create({
-            data: {
-              partId: item.partId,
-              quantity: item.quantity,
-            },
-          });
-        }
-
         returnedItems.push({
           partNo: item.part?.partNo || 'Unknown',
           partId: item.partId,
