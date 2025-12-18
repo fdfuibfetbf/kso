@@ -220,6 +220,14 @@ export default function PartsPage() {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  const handleNewPart = () => {
+    setSelectedPart(null);
+    // Reset models to empty when creating new part
+    setCurrentModels([
+      { id: '', partId: '', modelNo: '', qtyUsed: 1, tab: 'P1' }
+    ]);
+  };
+
   const handleSaveKit = (kit: Kit) => {
     setSelectedKit(kit);
     setRefreshTrigger(prev => prev + 1);
@@ -385,7 +393,7 @@ export default function PartsPage() {
     >
       {/* Left Panel - Part/Kit Form with Tabs */}
       <div 
-        className="order-1 xl:order-1 flex flex-col overflow-hidden flex-shrink-0 w-full xl:w-auto mb-4 xl:mb-0 scroll-smooth"
+        className="order-1 xl:order-1 flex flex-col overflow-visible flex-shrink-0 w-full xl:w-auto mb-4 xl:mb-0 scroll-smooth"
         style={{ 
           flex: isDesktop ? `0 0 ${Math.min(45, leftWidth)}%` : 'none',
           height: isDesktop ? '100%' : 'auto',
@@ -398,7 +406,7 @@ export default function PartsPage() {
           scrollSnapAlign: isDesktop ? 'none' : 'start'
         }}
       >
-        <div className="bg-white rounded-xl shadow-soft border border-gray-200 flex flex-col overflow-hidden" style={{ height: isDesktop ? '100%' : 'auto', maxHeight: isDesktop ? '100%' : '80vh' }}>
+        <div className="bg-white rounded-xl shadow-soft border border-gray-200 flex flex-col" style={{ height: isDesktop ? '100%' : 'auto', maxHeight: isDesktop ? '100%' : '80vh', overflow: 'visible' }}>
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
             <button
@@ -432,12 +440,13 @@ export default function PartsPage() {
           </div>
 
           {/* Tab Content */}
-          <div className="p-0 flex-1 flex flex-col min-h-0 tab-fade overflow-hidden">
+          <div className="p-0 flex-1 flex flex-col min-h-0 tab-fade overflow-y-auto" style={{ overflowX: 'visible' }}>
             {activeFormTab === 'part' ? (
               <PartForm
                 part={selectedPart}
                 onSave={handleSavePart}
                 onDelete={handleDeletePart}
+                onNew={handleNewPart}
                 models={currentModels}
               />
             ) : (

@@ -76,7 +76,17 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
   const fetchParts = async () => {
     try {
       const response = await api.get('/parts?limit=1000&status=A');
-      setAvailableParts(response.data.parts);
+      const parts = response.data.parts || [];
+      // Debug: Log first few parts to check stock data
+      if (parts.length > 0) {
+        console.log('KitForm: Sample parts with stock:', parts.slice(0, 3).map((p: any) => ({
+          partNo: p.partNo,
+          stock: p.stock,
+          cost: p.cost,
+          priceA: p.priceA
+        })));
+      }
+      setAvailableParts(parts);
     } catch (err) {
       console.error('Failed to fetch parts:', err);
     }
@@ -276,26 +286,56 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
             </div>
           )}
 
-          <div>
-            <Label htmlFor="kitNo">Kit Number *</Label>
-            <Input
-              id="kitNo"
-              value={formData.kitNo}
-              onChange={(e) => setFormData({ ...formData, kitNo: e.target.value })}
-              placeholder="KIT-001"
-              required
-            />
-          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full min-w-0">
+            <div className="min-w-0">
+              <Label htmlFor="kitNo">Kit Number *</Label>
+              <Input
+                id="kitNo"
+                value={formData.kitNo}
+                onChange={(e) => setFormData({ ...formData, kitNo: e.target.value })}
+                placeholder="KIT-001"
+                required
+                className="w-full"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="name">Kit Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Enter kit name"
-              required
-            />
+            <div className="min-w-0">
+              <Label htmlFor="name">Kit Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter kit name"
+                required
+                className="w-full"
+              />
+            </div>
+
+            <div className="min-w-0">
+              <Label htmlFor="price">Selling Price</Label>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                value={formData.price || ''}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value ? parseFloat(e.target.value) : undefined })}
+                placeholder="0.00"
+                className="w-full"
+              />
+            </div>
+
+            <div className="min-w-0">
+              <AnimatedSelect
+                label="Status"
+                value={formData.status}
+                onChange={(value) => setFormData({ ...formData, status: value as 'A' | 'I' })}
+                options={[
+                  { value: 'A', label: 'Active' },
+                  { value: 'I', label: 'Inactive' },
+                ]}
+                placeholder="Select status"
+              />
+            </div>
           </div>
 
           <div>
@@ -306,31 +346,6 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Enter description"
               rows={2}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="price">Selling Price</Label>
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              value={formData.price || ''}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value ? parseFloat(e.target.value) : undefined })}
-              placeholder="0.00"
-            />
-          </div>
-
-          <div>
-            <AnimatedSelect
-              label="Status"
-              value={formData.status}
-              onChange={(value) => setFormData({ ...formData, status: value as 'A' | 'I' })}
-              options={[
-                { value: 'A', label: 'Active' },
-                { value: 'I', label: 'Inactive' },
-              ]}
-              placeholder="Select status"
             />
           </div>
 
@@ -412,11 +427,30 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
                         options={[
                           { value: '', label: 'Select part' },
                           ...availableParts.map((part) => {
-                            const stockQty = part.stock?.quantity || 0;
-                            const isAvailable = stockQty > 0;
-                            const label = isAvailable
-                              ? `${part.partNo} - ${part.description || 'No description'} (Stock: ${stockQty})`
-                              : `${part.partNo} - ${part.description || 'No description'} (Out of Stock)`;
+                            // Get stock quantity - handle null/undefined stock records
+                            const stockQty = part.stock?.quantity ?? 0;
+                            const hasStock = stockQty > 0;
+                            const cost = part.cost || 0;
+                            const priceA = part.priceA || 0;
+                            const priceB = part.priceB || 0;
+                            const priceM = part.priceM || 0;
+                            
+                            // Build label with stock and price information
+                            const stockInfo = hasStock 
+                              ? `Stock: ${stockQty}` 
+                              : `Stock: ${stockQty} (Out of Stock)`;
+                            
+                            // Build price information
+                            const priceParts: string[] = [];
+                            if (cost > 0) priceParts.push(`Cost: Rs ${cost.toFixed(2)}`);
+                            if (priceA > 0) priceParts.push(`Price A: Rs ${priceA.toFixed(2)}`);
+                            if (priceB > 0) priceParts.push(`Price B: Rs ${priceB.toFixed(2)}`);
+                            if (priceM > 0) priceParts.push(`Price M: Rs ${priceM.toFixed(2)}`);
+                            
+                            const priceInfo = priceParts.length > 0 ? ` | ${priceParts.join(', ')}` : '';
+                            
+                            const label = `${part.partNo} - ${part.description || 'No description'} | ${stockInfo}${priceInfo}`;
+                            
                             return {
                               value: part.id || '',
                               label,
@@ -487,11 +521,11 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
                           <div className="grid grid-cols-2 gap-3">
                             <div className="bg-white p-2 rounded border border-gray-100">
                               <p className="text-xs text-gray-500 mb-1">Unit Cost</p>
-                              <p className="text-sm font-semibold text-gray-900">${(selectedPart.cost || 0).toFixed(2)}</p>
+                              <p className="text-sm font-semibold text-gray-900">Rs {(selectedPart.cost || 0).toFixed(2)}</p>
                             </div>
                             <div className="bg-primary-50 p-2 rounded border border-primary-200">
                               <p className="text-xs text-primary-600 mb-1">Total Cost</p>
-                              <p className="text-sm font-bold text-primary-700">${((selectedPart.cost || 0) * item.quantity).toFixed(2)}</p>
+                              <p className="text-sm font-bold text-primary-700">Rs {((selectedPart.cost || 0) * item.quantity).toFixed(2)}</p>
                             </div>
                           </div>
                         </div>

@@ -21,10 +21,36 @@ export default function AnimatedSelect({
 }: AnimatedSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const selectedOption = options.find(opt => opt.value === value);
+
+  // Update dropdown position when it opens
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const updatePosition = () => {
+        const rect = buttonRef.current!.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+        });
+      };
+      
+      updatePosition();
+      
+      // Update on scroll/resize
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+      
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -140,7 +166,7 @@ export default function AnimatedSelect({
         <div
           ref={dropdownRef}
           className={`
-            absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl
+            fixed z-[9999] mt-1 bg-white border border-gray-200 rounded-md shadow-xl
             overflow-hidden backdrop-blur-sm
             transition-all duration-200 ease-out
             ${isOpen
@@ -154,6 +180,9 @@ export default function AnimatedSelect({
             boxShadow: isOpen
               ? '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
               : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            width: dropdownPosition.width || buttonRef.current?.offsetWidth || 'auto',
+            left: dropdownPosition.left || 'auto',
+            top: dropdownPosition.top || 'auto',
           }}
         >
           <div className="max-h-60 overflow-y-auto scrollbar-hide">

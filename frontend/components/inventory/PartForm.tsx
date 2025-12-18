@@ -52,6 +52,7 @@ interface PartFormProps {
   part?: Part | null;
   onSave: (part: Part) => void;
   onDelete?: (id: string) => void;
+  onNew?: () => void;
   models?: PartModel[];
 }
 
@@ -62,7 +63,7 @@ const ORIGIN_OPTIONS = ['USA', 'CHINA', 'JAPAN', 'GERMANY', 'INDIA', 'OTHER'];
 
 const STORAGE_KEY = 'partFormDraft_v1';
 
-export default function PartForm({ part, onSave, onDelete, models = [] }: PartFormProps) {
+export default function PartForm({ part, onSave, onDelete, onNew, models = [] }: PartFormProps) {
   const { showToast } = useToast();
   const [formData, setFormData] = useState<Part>({
     partNo: '',
@@ -867,6 +868,8 @@ export default function PartForm({ part, onSave, onDelete, models = [] }: PartFo
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyState));
     }
     setError('');
+    // Notify parent to clear selected part and reset models
+    onNew?.();
   };
 
   return (
