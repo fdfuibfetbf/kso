@@ -1,32 +1,99 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface VoucherEntry {
   id: string;
-  accountId: string;
+  accountId: number | null;
   accountName: string;
   debit: number;
   credit: number;
   description: string;
 }
 
+interface CoaAccount {
+  id: number;
+  name: string;
+  code: string;
+  coaGroup: { name: string };
+  coaSubGroup: { name: string };
+}
+
+const VOUCHER_TYPES = [
+  { value: 1, label: 'Receipt Voucher (RV)', description: 'Money received' },
+  { value: 2, label: 'Payment Voucher (PV)', description: 'Money paid' },
+  { value: 3, label: 'Purchase Voucher', description: 'Purchase transactions' },
+  { value: 4, label: 'Sales Voucher', description: 'Sales transactions' },
+  { value: 5, label: 'Contra Voucher (CV)', description: 'Cash/Bank transfers' },
+  { value: 6, label: 'Journal Voucher (JV)', description: 'General journal entries' },
+  { value: 7, label: 'Extended Journal Voucher', description: 'Complex multi-account entries' },
+];
+
 export default function NewVoucher() {
-  const [voucherType, setVoucherType] = useState('payment');
+  const [voucherType, setVoucherType] = useState<number>(1);
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().split('T')[0]);
-  const [voucherNumber, setVoucherNumber] = useState('');
   const [narration, setNarration] = useState('');
+  const [chequeNo, setChequeNo] = useState('');
+  const [chequeDate, setChequeDate] = useState('');
   const [entries, setEntries] = useState<VoucherEntry[]>([
-    { id: '1', accountId: '', accountName: '', debit: 0, credit: 0, description: '' }
+    { id: '1', accountId: null, accountName: '', debit: 0, credit: 0, description: '' }
   ]);
+  const [cashBankAccount, setCashBankAccount] = useState<{ id: number; name: string } | null>(null);
+  const [accounts, setAccounts] = useState<CoaAccount[]>([]);
+  const [cashBankAccounts, setCashBankAccounts] = useState<CoaAccount[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchAccounts();
+    if ([1, 2, 5].includes(voucherType)) {
+      fetchCashBankAccounts();
+    }
+  }, [voucherType]);
+
+  const fetchAccounts = async () => {
+    try {
+      const response = await api.get('/accounts/coa-accounts');
+      setAccounts(response.data.coaAccounts || []);
+    } catch (error) {
+      console.error('Failed to fetch accounts:', error);
+    }
+  };
+
+  const fetchCashBankAccounts = async () => {
+    try {
+      const cashResponse = await api.get('/accounts/cash-accounts');
+      const bankResponse = await api.get('/accounts/bank-accounts');
+      const all = [...(cashResponse.data.coaAccounts || []), ...(bankResponse.data.coaAccounts || [])];
+      setCashBankAccounts(all);
+    } catch (error) {
+      console.error('Failed to fetch cash/bank accounts:', error);
+    }
+  };
+
+  const filteredAccounts = accounts.filter(acc =>
+    acc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    acc.code.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const addEntry = () => {
     const newEntry: VoucherEntry = {
       id: Date.now().toString(),
-      accountId: '',
+      accountId: null,
       accountName: '',
       debit: 0,
       credit: 0,
@@ -42,232 +109,298 @@ export default function NewVoucher() {
   };
 
   const updateEntry = (id: string, field: keyof VoucherEntry, value: any) => {
-    setEntries(entries.map(entry => 
+    setEntries(entries.map(entry =>
       entry.id === id ? { ...entry, [field]: value } : entry
     ));
   };
 
   const totalDebit = entries.reduce((sum, entry) => sum + (Number(entry.debit) || 0), 0);
   const totalCredit = entries.reduce((sum, entry) => sum + (Number(entry.credit) || 0), 0);
-  const isBalanced = totalDebit === totalCredit && totalDebit > 0;
+  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!isBalanced) {
-      alert('Voucher is not balanced! Total debit must equal total credit.');
+      toast.error('Voucher is not balanced', {
+        description: `Debit: ${totalDebit.toFixed(2)}, Credit: ${totalCredit.toFixed(2)}`,
+      });
       return;
     }
 
-    // TODO: Submit voucher to API
-    console.log({
-      voucherType,
-      voucherDate,
-      voucherNumber,
-      narration,
-      entries,
-      totalAmount: totalDebit
-    });
+    if (entries.some(e => !e.accountId || (e.debit === 0 && e.credit === 0))) {
+      toast.error('Please fill all entries with account and amount');
+      return;
+    }
 
-    alert('Voucher saved successfully!');
+    try {
+      setLoading(true);
+      const payload = {
+        type: voucherType,
+        date: voucherDate,
+        totalAmount: Math.max(totalDebit, totalCredit),
+        name: narration,
+        account: cashBankAccount ? { id: cashBankAccount.id } : undefined,
+        list: entries.map(e => ({
+          account: { id: e.accountId! },
+          dr: Number(e.debit) || 0,
+          cr: Number(e.credit) || 0,
+          description: e.description,
+        })),
+        chequeNo: chequeNo || undefined,
+        chequeDate: chequeDate || undefined,
+      };
+
+      await api.post('/vouchers', payload);
+      toast.success('Voucher created successfully');
+      
+      // Reset form
+      setEntries([{ id: '1', accountId: null, accountName: '', debit: 0, credit: 0, description: '' }]);
+      setNarration('');
+      setChequeNo('');
+      setChequeDate('');
+      setCashBankAccount(null);
+    } catch (error: any) {
+      toast.error('Failed to create voucher', {
+        description: error.response?.data?.message || 'An error occurred',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Voucher Details */}
-        <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Voucher Details</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="space-y-6 animate-fadeIn">
+      <Card>
+        <CardHeader>
+          <CardTitle>Create New Voucher</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Voucher Type */}
             <div>
-              <Label htmlFor="voucherType">Voucher Type</Label>
+              <Label htmlFor="voucherType">Voucher Type *</Label>
               <select
                 id="voucherType"
                 value={voucherType}
-                onChange={(e) => setVoucherType(e.target.value)}
-                className="mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  setVoucherType(parseInt(e.target.value));
+                  setEntries([{ id: '1', accountId: null, accountName: '', debit: 0, credit: 0, description: '' }]);
+                  setCashBankAccount(null);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff6b35] focus:border-[#ff6b35]"
                 required
               >
-                <option value="payment">Payment Voucher</option>
-                <option value="receipt">Receipt Voucher</option>
-                <option value="journal">Journal Voucher</option>
-                <option value="contra">Contra Voucher</option>
+                {VOUCHER_TYPES.map(type => (
+                  <option key={type.value} value={type.value}>
+                    {type.label} - {type.description}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <div>
-              <Label htmlFor="voucherNumber">Voucher Number</Label>
-              <Input
-                id="voucherNumber"
-                type="text"
-                value={voucherNumber}
-                onChange={(e) => setVoucherNumber(e.target.value)}
-                placeholder="Auto-generated"
-                className="mt-1"
-              />
+            {/* Date and Narration */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="voucherDate">Date *</Label>
+                <Input
+                  id="voucherDate"
+                  type="date"
+                  value={voucherDate}
+                  onChange={(e) => setVoucherDate(e.target.value)}
+                  required
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="narration">Narration</Label>
+                <Input
+                  id="narration"
+                  value={narration}
+                  onChange={(e) => setNarration(e.target.value)}
+                  placeholder="Voucher description"
+                  className="mt-1"
+                />
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="voucherDate">Date</Label>
-              <Input
-                id="voucherDate"
-                type="date"
-                value={voucherDate}
-                onChange={(e) => setVoucherDate(e.target.value)}
-                className="mt-1"
-                required
-              />
+            {/* Cash/Bank Account for RV/PV/CV */}
+            {[1, 2, 5].includes(voucherType) && (
+              <div>
+                <Label htmlFor="cashBankAccount">Cash/Bank Account *</Label>
+                <select
+                  id="cashBankAccount"
+                  value={cashBankAccount?.id || ''}
+                  onChange={(e) => {
+                    const acc = cashBankAccounts.find(a => a.id === parseInt(e.target.value));
+                    setCashBankAccount(acc ? { id: acc.id, name: acc.name } : null);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff6b35] focus:border-[#ff6b35]"
+                  required
+                >
+                  <option value="">Select Account</option>
+                  {cashBankAccounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.code} - {acc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Cheque Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="chequeNo">Cheque Number</Label>
+                <Input
+                  id="chequeNo"
+                  value={chequeNo}
+                  onChange={(e) => setChequeNo(e.target.value)}
+                  placeholder="Optional"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="chequeDate">Cheque Date</Label>
+                <Input
+                  id="chequeDate"
+                  type="date"
+                  value={chequeDate}
+                  onChange={(e) => setChequeDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Voucher Entries */}
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Entries</h3>
-          </div>
+            {/* Entries */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <Label>Transaction Entries *</Label>
+                <Button type="button" onClick={addEntry} variant="outline" size="sm">
+                  + Add Entry
+                </Button>
+              </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Account
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Debit
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Credit
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {entries.map((entry) => (
-                  <tr key={entry.id}>
-                    <td className="px-4 py-3">
-                      <Input
-                        type="text"
-                        value={entry.accountName}
-                        onChange={(e) => updateEntry(entry.id, 'accountName', e.target.value)}
-                        placeholder="Select account"
-                        required
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Input
-                        type="text"
-                        value={entry.description}
-                        onChange={(e) => updateEntry(entry.id, 'description', e.target.value)}
-                        placeholder="Description"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Input
-                        type="number"
-                        value={entry.debit || ''}
-                        onChange={(e) => updateEntry(entry.id, 'debit', parseFloat(e.target.value) || 0)}
-                        placeholder="0.00"
-                        className="text-right"
-                        min="0"
-                        step="0.01"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Input
-                        type="number"
-                        value={entry.credit || ''}
-                        onChange={(e) => updateEntry(entry.id, 'credit', parseFloat(e.target.value) || 0)}
-                        placeholder="0.00"
-                        className="text-right"
-                        min="0"
-                        step="0.01"
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => removeEntry(entry.id)}
-                        disabled={entries.length === 1}
-                        className="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-gray-50 border-t-2 border-gray-300">
-                <tr>
-                  <td colSpan={2} className="px-4 py-3 text-right font-semibold text-gray-900">
-                    Total:
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-900">
-                    ₹{totalDebit.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-900">
-                    ₹{totalCredit.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {isBalanced ? (
-                      <span className="text-green-600 font-semibold">✓ Balanced</span>
-                    ) : (
-                      <span className="text-red-600 font-semibold">✗ Not Balanced</span>
-                    )}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Account</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Debit</TableHead>
+                      <TableHead>Credit</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {entries.map((entry, index) => (
+                      <TableRow key={entry.id}>
+                        <TableCell>
+                          <select
+                            value={entry.accountId || ''}
+                            onChange={(e) => {
+                              const acc = accounts.find(a => a.id === parseInt(e.target.value));
+                              updateEntry(entry.id, 'accountId', acc ? acc.id : null);
+                              updateEntry(entry.id, 'accountName', acc ? acc.name : '');
+                            }}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            required
+                          >
+                            <option value="">Select Account</option>
+                            {filteredAccounts.map(acc => (
+                              <option key={acc.id} value={acc.id}>
+                                {acc.code} - {acc.name}
+                              </option>
+                            ))}
+                          </select>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={entry.description}
+                            onChange={(e) => updateEntry(entry.id, 'description', e.target.value)}
+                            placeholder="Description"
+                            className="w-full"
+                            size="sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={entry.debit || ''}
+                            onChange={(e) => {
+                              updateEntry(entry.id, 'debit', parseFloat(e.target.value) || 0);
+                              if (voucherType === 6 || voucherType === 7) {
+                                updateEntry(entry.id, 'credit', 0);
+                              }
+                            }}
+                            placeholder="0.00"
+                            className="w-full"
+                            size="sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={entry.credit || ''}
+                            onChange={(e) => {
+                              updateEntry(entry.id, 'credit', parseFloat(e.target.value) || 0);
+                              if (voucherType === 6 || voucherType === 7) {
+                                updateEntry(entry.id, 'debit', 0);
+                              }
+                            }}
+                            placeholder="0.00"
+                            className="w-full"
+                            size="sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {entries.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeEntry(entry.id)}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
-          <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
-            <Button
-              type="button"
-              onClick={addEntry}
-              variant="outline"
-              className="w-full"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Entry
-            </Button>
-          </div>
-        </div>
+              {/* Totals */}
+              <div className="mt-4 flex justify-end gap-4">
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">Total Debit</div>
+                  <div className="text-lg font-semibold">{totalDebit.toFixed(2)}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">Total Credit</div>
+                  <div className="text-lg font-semibold">{totalCredit.toFixed(2)}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">Difference</div>
+                  <div className={`text-lg font-semibold ${isBalanced ? 'text-green-600' : 'text-red-600'}`}>
+                    {(totalDebit - totalCredit).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        {/* Narration */}
-        <div>
-          <Label htmlFor="narration">Narration</Label>
-          <textarea
-            id="narration"
-            value={narration}
-            onChange={(e) => setNarration(e.target.value)}
-            placeholder="Enter voucher narration..."
-            rows={3}
-            className="max-w-md mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline">
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!isBalanced}>
-            Save Voucher
-          </Button>
-        </div>
-      </form>
+            {/* Submit */}
+            <div className="flex justify-end gap-4">
+              <Button type="submit" className="bg-[#ff6b35] hover:bg-[#e55a2b]" disabled={loading || !isBalanced}>
+                {loading ? 'Creating...' : 'Create Voucher'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

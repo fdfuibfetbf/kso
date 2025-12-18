@@ -3,181 +3,273 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface Voucher {
   id: number;
-  voucherType: string;
-  voucherNumber: string;
+  voucherNo: number;
+  type: number;
   date: string;
-  description: string;
-  amount: number;
-  status: string;
+  name: string | null;
+  totalAmount: number;
+  isApproved: boolean;
+  isPostDated: number;
+  chequeNo: string | null;
+  chequeDate: string | null;
+  transactions: Array<{
+    id: number;
+    debit: number;
+    credit: number;
+    description: string | null;
+    coaAccount: {
+      id: number;
+      name: string;
+      code: string;
+    };
+  }>;
 }
+
+const VOUCHER_TYPE_NAMES: Record<number, string> = {
+  1: 'Receipt Voucher',
+  2: 'Payment Voucher',
+  3: 'Purchase Voucher',
+  4: 'Sales Voucher',
+  5: 'Contra Voucher',
+  6: 'Journal Voucher',
+  7: 'Extended Journal Voucher',
+};
+
+const VOUCHER_TYPE_PREFIXES: Record<number, string> = {
+  1: 'RV',
+  2: 'PV',
+  3: 'PV',
+  4: 'SV',
+  5: 'CV',
+  6: 'JV',
+  7: 'EJV',
+};
 
 export default function ViewVouchers() {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterApproved, setFilterApproved] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-  // Sample data - replace with API call
   useEffect(() => {
-    // TODO: Fetch vouchers from API
-    const sampleVouchers: Voucher[] = [
-      {
-        id: 1,
-        voucherType: 'Payment',
-        voucherNumber: 'PV-001',
-        date: '2025-12-01',
-        description: 'Office Supplies Payment',
-        amount: 5000,
-        status: 'Approved'
-      },
-      {
-        id: 2,
-        voucherType: 'Receipt',
-        voucherNumber: 'RV-001',
-        date: '2025-12-02',
-        description: 'Customer Payment Received',
-        amount: 15000,
-        status: 'Approved'
-      },
-      {
-        id: 3,
-        voucherType: 'Journal',
-        voucherNumber: 'JV-001',
-        date: '2025-12-03',
-        description: 'Adjustment Entry',
-        amount: 3000,
-        status: 'Pending'
-      }
-    ];
-    setVouchers(sampleVouchers);
-  }, []);
+    fetchVouchers();
+  }, [filterType, filterApproved, dateFrom, dateTo]);
+
+  const fetchVouchers = async () => {
+    try {
+      setLoading(true);
+      const params: any = {};
+      if (filterType !== 'all') params.type = filterType;
+      if (filterApproved !== 'all') params.isApproved = filterApproved === 'true';
+      if (dateFrom) params.from = dateFrom;
+      if (dateTo) params.to = dateTo;
+
+      const response = await api.get('/vouchers', { params });
+      setVouchers(response.data.vouchers || []);
+    } catch (error: any) {
+      toast.error('Failed to fetch vouchers', {
+        description: error.response?.data?.message || 'An error occurred',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (voucherId: number) => {
+    try {
+      await api.post(`/vouchers/${voucherId}/approve`);
+      toast.success('Voucher approval toggled');
+      fetchVouchers();
+    } catch (error: any) {
+      toast.error('Failed to toggle approval', {
+        description: error.response?.data?.message || 'An error occurred',
+      });
+    }
+  };
+
+  const handleDelete = async (voucherId: number) => {
+    if (!confirm('Are you sure you want to delete this voucher?')) return;
+
+    try {
+      await api.delete(`/vouchers/${voucherId}`);
+      toast.success('Voucher deleted successfully');
+      fetchVouchers();
+    } catch (error: any) {
+      toast.error('Failed to delete voucher', {
+        description: error.response?.data?.message || 'An error occurred',
+      });
+    }
+  };
+
+  const formatVoucherNo = (type: number, voucherNo: number) => {
+    const prefix = VOUCHER_TYPE_PREFIXES[type] || 'V';
+    return `${prefix}${String(voucherNo).padStart(3, '0')}`;
+  };
 
   const filteredVouchers = vouchers.filter((voucher) => {
-    const matchesSearch = 
-      voucher.voucherNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      voucher.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || voucher.voucherType.toLowerCase() === filterType.toLowerCase();
-    return matchesSearch && matchesType;
+    const matchesSearch =
+      formatVoucherNo(voucher.type, voucher.voucherNo).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (voucher.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
       {/* Filters */}
-      <div className="flex gap-4">
-        <Input
-          placeholder="Search vouchers..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">All Types</option>
-          <option value="payment">Payment</option>
-          <option value="receipt">Receipt</option>
-          <option value="journal">Journal</option>
-          <option value="contra">Contra</option>
-        </select>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <Input
+              placeholder="Search vouchers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff6b35]"
+            >
+              <option value="all">All Types</option>
+              {Object.entries(VOUCHER_TYPE_NAMES).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              value={filterApproved}
+              onChange={(e) => setFilterApproved(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff6b35]"
+            >
+              <option value="all">All</option>
+              <option value="true">Approved</option>
+              <option value="false">Pending</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-full"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Vouchers Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Voucher No.
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredVouchers.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    No vouchers found
-                  </td>
-                </tr>
-              ) : (
-                filteredVouchers.map((voucher) => (
-                  <tr key={voucher.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {voucher.voucherNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {voucher.voucherType}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="text-center py-8">Loading vouchers...</div>
+        ) : filteredVouchers.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No vouchers found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Voucher No.</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Post-Dated</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredVouchers.map((voucher) => (
+                  <TableRow key={voucher.id}>
+                    <TableCell className="font-mono font-semibold">
+                      {formatVoucherNo(voucher.type, voucher.voucherNo)}
+                    </TableCell>
+                    <TableCell>{VOUCHER_TYPE_NAMES[voucher.type]}</TableCell>
+                    <TableCell>{new Date(voucher.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{voucher.name || '-'}</TableCell>
+                    <TableCell className="font-semibold">
+                      {voucher.totalAmount.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`px-2 py-1 rounded text-xs ${
+                          voucher.isApproved
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                      >
+                        {voucher.isApproved ? 'Approved' : 'Pending'}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(voucher.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {voucher.description}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
-                      ₹{voucher.amount.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        voucher.status === 'Approved' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {voucher.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button className="text-blue-600 hover:text-blue-900">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-                        <button className="text-green-600 hover:text-green-900">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button className="text-red-600 hover:text-red-900">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                    </TableCell>
+                    <TableCell>
+                      {voucher.isPostDated === 1 ? (
+                        <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                          Post-Dated
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleApprove(voucher.id)}
+                        >
+                          {voucher.isApproved ? 'Unapprove' : 'Approve'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(voucher.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Delete
+                        </Button>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

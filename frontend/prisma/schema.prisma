@@ -648,4 +648,26 @@ model Brand {
   @@index([status])
 }
 
+model PurchaseOrderDeletionLog {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  poNo            String
+  type            String   // "purchase" or "direct"
+  deletedBy       String   // User ID
+  deletedByName   String   // User name
+  deletedByEmail  String   // User email
+  deletedByRole   String   // User role
+  ipAddress       String?  // IP address from where deletion occurred
+  status          String   // Status of PO when deleted
+  wasReceived     Boolean  @default(false) // Whether PO was received (stock needs reversal)
+  stockReversed   Boolean  @default(false) // Whether stock was successfully reversed
+  notes           String?  // Additional notes
+  createdAt       DateTime @default(now())
+
+  @@index([purchaseOrderId])
+  @@index([poNo])
+  @@index([deletedBy])
+  @@index([createdAt])
+}
+
 

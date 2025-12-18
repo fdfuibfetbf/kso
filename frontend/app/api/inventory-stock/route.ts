@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
     const where: any = {
       stock: {
         isNot: null,
+        quantity: {
+          gt: 0, // Only show items with stock quantity > 0 (processed/received items)
+        },
       },
     };
 

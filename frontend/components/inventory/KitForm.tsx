@@ -386,7 +386,7 @@ export default function KitForm({ kit, onSave, onDelete }: KitFormProps) {
               {items.map((item, index) => (
                 <div
                   key={`item-${index}-${item.partId || 'new'}`}
-                  className={`kit-item-card border rounded-lg bg-white shadow-sm overflow-hidden ${
+                  className={`kit-item-card border rounded-lg bg-white shadow-sm overflow-visible ${
                     removingIndex === index ? 'kit-item-exit' : 'kit-item-enter'
                   }`}
                   style={{ 
