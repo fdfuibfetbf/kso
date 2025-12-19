@@ -32,7 +32,8 @@ export function verifyToken(request: NextRequest): AuthUser | null {
   logDebug({ location: 'auth.ts:30', message: 'verifyToken entry', data: { hasAuthHeader: !!request.headers.get('authorization'), method: request.method, url: request.url }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' });
   // #endregion
   try {
-    const authHeader = request.headers.get('authorization');
+    // Try both lowercase and capitalized header names (HTTP headers are case-insensitive, but Next.js might be strict)
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
     // #region agent log
     logDebug({ location: 'auth.ts:35', message: 'auth header check', data: { hasAuthHeader: !!authHeader, authHeaderPrefix: authHeader?.substring(0, 10) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'B' });
     // #endregion
@@ -41,6 +42,9 @@ export function verifyToken(request: NextRequest): AuthUser | null {
       // #region agent log
       logDebug({ location: 'auth.ts:40', message: 'no auth header', data: {}, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'B' });
       // #endregion
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Auth] No authorization header found');
+      }
       return null;
     }
 

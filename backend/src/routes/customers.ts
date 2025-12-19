@@ -146,6 +146,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
         phone: data.phone !== undefined ? (data.phone || null) : undefined,
         address: data.address !== undefined ? (data.address || null) : undefined,
         cnic: data.cnic !== undefined ? (data.cnic || null) : undefined,
+        status: data.status !== undefined ? data.status : undefined,
         openingBalance: data.openingBalance !== undefined ? data.openingBalance : undefined,
         creditBalance: data.creditBalance !== undefined ? data.creditBalance : undefined,
         creditLimit: data.creditLimit !== undefined ? data.creditLimit : undefined,

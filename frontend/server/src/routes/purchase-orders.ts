@@ -23,8 +23,6 @@ const purchaseOrderSchema = z.object({
   discount: z.number().optional(),
   totalAmount: z.number().optional(),
   notes: z.string().optional(),
-  // Stored when receiving items (rack/shelf, prices, expenses, totals etc.)
-  receiveData: z.any().optional(),
   // Allow client-selected receive date (ISO string)
   receivedAt: z.string().optional(),
   items: z.array(z.object({

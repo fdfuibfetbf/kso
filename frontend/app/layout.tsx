@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import ConsoleErrorFilter from '@/components/console-error-filter'
 import { ToastProvider } from '@/components/ui/toast-provider'
+import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
   title: 'Inventory Management System',
@@ -27,6 +28,7 @@ export default function RootLayout({
         <ToastProvider>
           {children}
         </ToastProvider>
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   )

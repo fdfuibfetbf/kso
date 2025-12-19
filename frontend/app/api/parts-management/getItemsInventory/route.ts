@@ -14,18 +14,57 @@ export async function GET(req: NextRequest) {
     const category_id = searchParams.get('category_id');
     const sub_category_id = searchParams.get('sub_category_id');
     const part_model_id = searchParams.get('part_model_id');
+    const from_date = searchParams.get('from_date');
+    const to_date = searchParams.get('to_date');
 
     const limit = records;
     const page = pageNo;
     const offset = (page - 1) * limit;
 
-    // Build filters based on existing Part model structure
-    const where: any = {};
+    // Build filters - use AND to combine all conditions
+    const conditions: any[] = [];
     
-    if (item_id) where.id = item_id;
-    if (category_id) where.mainCategory = { contains: category_id };
-    if (sub_category_id) where.subCategory = { contains: sub_category_id };
-    if (part_model_id) where.id = part_model_id;
+    // Always exclude zero quantity items - only show parts that have stock with quantity > 0
+    conditions.push({
+      stock: {
+        isNot: null,
+        quantity: {
+          gt: 0
+        }
+      }
+    });
+    
+    // Basic filters
+    if (item_id) conditions.push({ id: item_id });
+    if (category_id) conditions.push({ mainCategory: category_id });
+    if (sub_category_id) conditions.push({ subCategory: sub_category_id });
+    if (part_model_id) conditions.push({ id: part_model_id });
+    
+    // Build date filter
+    if (from_date || to_date) {
+      const dateFilter: any = {};
+      if (from_date) {
+        const fromDate = new Date(from_date);
+        fromDate.setHours(0, 0, 0, 0);
+        dateFilter.gte = fromDate;
+      }
+      if (to_date) {
+        const toDate = new Date(to_date);
+        toDate.setHours(23, 59, 59, 999);
+        dateFilter.lte = toDate;
+      }
+      
+      // Add date filter - match either createdAt or updatedAt
+      conditions.push({
+        OR: [
+          { createdAt: dateFilter },
+          { updatedAt: dateFilter }
+        ]
+      });
+    }
+    
+    // Combine all conditions with AND (always have at least stock condition)
+    const where: any = { AND: conditions };
 
     // Get total count
     const total = await prisma.part.count({ where });
@@ -45,43 +84,46 @@ export async function GET(req: NextRequest) {
     });
 
     // Format response to match expected structure from documentation
-    const formattedData = parts.map((part) => ({
-      id: part.id,
-      quantity: part.stock?.quantity || 0,
-      item: {
+    // Filter out zero quantity items
+    const formattedData = parts
+      .filter((part) => (part.stock?.quantity || 0) > 0)
+      .map((part) => ({
         id: part.id,
-        machine_part_oem_part: {
-          oem_part_number: {
-            number1: part.partNo,
-            number2: part.masterPartNo || ''
-          },
-          machine_part: {
-            name: part.description || part.partNo,
-            unit: {
-              name: part.uom || 'Piece'
+        quantity: part.stock?.quantity || 0,
+        item: {
+          id: part.id,
+          machine_part_oem_part: {
+            oem_part_number: {
+              number1: part.partNo,
+              number2: part.masterPartNo || ''
+            },
+            machine_part: {
+              name: part.description || part.partNo,
+              unit: {
+                name: part.uom || 'Piece'
+              }
             }
+          },
+          brand: {
+            name: part.brand || 'Generic'
+          },
+          machine_model: {
+            name: part.models?.[0]?.modelNo || 'Universal'
           }
         },
-        brand: {
-          name: part.brand || 'Generic'
+        store: {
+          name: part.stock?.store || 'Main Store',
+          store_type: {
+            name: 'Warehouse'
+          }
         },
-        machine_model: {
-          name: part.models?.[0]?.modelNo || 'Universal'
+        racks: {
+          rack_number: part.stock?.racks || part.rackNo || 'R001'
+        },
+        shelves: {
+          shelf_number: part.stock?.shelf || 'S001'
         }
-      },
-      store: {
-        name: part.stock?.store || 'Main Store',
-        store_type: {
-          name: 'Warehouse'
-        }
-      },
-      racks: {
-        rack_number: part.stock?.racks || part.rackNo || 'R001'
-      },
-      shelves: {
-        shelf_number: part.stock?.shelf || 'S001'
-      }
-    }));
+      }));
 
     const response = {
       itemsInventory: {
@@ -94,9 +136,21 @@ export async function GET(req: NextRequest) {
       }
     };
 
+    console.log('Returning inventory data:', {
+      total,
+      dataCount: formattedData.length,
+      page,
+      limit
+    });
+    
     return NextResponse.json(response);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching inventory items:', error);
-    return NextResponse.json({ error: 'Failed to fetch inventory items' }, { status: 500 });
+    console.error('Error stack:', error.stack);
+    return NextResponse.json({ 
+      error: 'Failed to fetch inventory items',
+      message: error.message || 'Unknown error',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { withAccelerate } from '@prisma/extension-accelerate';
 import path from 'path';
 import { existsSync } from 'fs';
 
@@ -93,16 +94,44 @@ if (prismaInstance && typeof (prismaInstance as any).brand === 'undefined') {
   prismaInstance = undefined;
 }
 
-export const prisma = prismaInstance ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development' && !isBuild ? ['error', 'warn'] : ['error'],
-  datasources: {
-    db: {
-      url: databaseUrl,
+// Check if Accelerate connection string is available
+const accelerateUrl = process.env.PRISMA_ACCELERATE_URL || databaseUrl?.includes('prisma://');
+const useAccelerate = !!accelerateUrl && !databaseUrl?.startsWith('file:');
+
+// Create Prisma Client with or without Accelerate
+const createPrismaClient = () => {
+  const baseClient = new PrismaClient({
+    log: process.env.NODE_ENV === 'development' && !isBuild ? ['error', 'warn'] : ['error'],
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
     },
-  },
-});
+  });
+
+  // Use Accelerate for production databases (PostgreSQL, MySQL, etc.)
+  // Skip Accelerate for SQLite (file: URLs)
+  if (useAccelerate) {
+    return baseClient.$extends(withAccelerate()) as unknown as PrismaClient;
+  }
+
+  return baseClient;
+};
+
+export const prisma = prismaInstance ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+// Log Accelerate status (skip during build)
+if (!isBuild) {
+  if (useAccelerate) {
+    console.log('[Prisma] 🚀 Accelerate enabled - queries will be 1000x faster!');
+  } else if (databaseUrl?.startsWith('file:')) {
+    console.log('[Prisma] 📁 Using SQLite (Accelerate not available for SQLite)');
+  } else {
+    console.log('[Prisma] 💡 Tip: Enable Accelerate for 1000x faster queries - https://pris.ly/tip-2-accelerate');
+  }
+}
 
 // Don't connect during build time - connections will happen at runtime
 if (!isBuild) {

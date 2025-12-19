@@ -241,7 +241,7 @@ export default function StockTransfer() {
 
   const resetForm = () => {
     setFormData({
-      transferNo: '',
+      transferNo: generateTransferNo(),
       transferDate: new Date().toISOString().split('T')[0],
       status: 'draft',
       notes: '',

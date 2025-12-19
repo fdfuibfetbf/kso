@@ -69,8 +69,14 @@ export default function NewVoucher() {
     try {
       const response = await api.get('/accounts/coa-accounts');
       setAccounts(response.data.coaAccounts || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch accounts:', error);
+      // Don't show toast for auth errors - they're handled by the interceptor
+      if (error.response?.status !== 401) {
+        toast.error('Failed to fetch accounts', {
+          description: error.response?.data?.message || 'An error occurred',
+        });
+      }
     }
   };
 
@@ -80,8 +86,14 @@ export default function NewVoucher() {
       const bankResponse = await api.get('/accounts/bank-accounts');
       const all = [...(cashResponse.data.coaAccounts || []), ...(bankResponse.data.coaAccounts || [])];
       setCashBankAccounts(all);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch cash/bank accounts:', error);
+      // Don't show toast for auth errors - they're handled by the interceptor
+      if (error.response?.status !== 401) {
+        toast.error('Failed to fetch cash/bank accounts', {
+          description: error.response?.data?.message || 'An error occurred',
+        });
+      }
     }
   };
 

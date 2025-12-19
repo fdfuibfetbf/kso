@@ -55,9 +55,19 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Only access localStorage and window on client side
       if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('token');
+        // If we get a 401, the token is either missing or invalid/expired
+        // Clear it and redirect to login
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        
+        // Only redirect if we're not already on the login page
+        if (window.location.pathname !== '/login') {
+          // Use a small delay to prevent redirect loops
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
+        }
       }
     }
     return Promise.reject(error);

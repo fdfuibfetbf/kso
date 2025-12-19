@@ -86,7 +86,11 @@ export default function DashboardLayout({
     // Only initialize on client side
     if (typeof window !== 'undefined') {
       init();
-      if (!isAuthenticated) {
+      // Check if there's a token in localStorage - if yes, don't redirect immediately
+      // The token might be valid but the store hasn't initialized yet
+      const token = localStorage.getItem('token');
+      if (!isAuthenticated && !token) {
+        // Only redirect if there's truly no token
         router.push('/login');
       }
     }

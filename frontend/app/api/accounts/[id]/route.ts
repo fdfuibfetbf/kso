@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/middleware/auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.BACKEND_URL || 'http://localhost:5000/api';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // GET single item
 export async function GET(
@@ -8,11 +12,17 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const user = verifyToken(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'main-groups';
 
     const response = await fetch(`${API_BASE_URL}/accounts/${type}/${params.id}`, {
       headers: {
+        Authorization: request.headers.get('Authorization') || '',
         'Content-Type': 'application/json',
       },
     });
@@ -24,10 +34,10 @@ export async function GET(
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch item' },
+      { error: 'Failed to fetch item', message: error.message },
       { status: 500 }
     );
   }
@@ -39,6 +49,11 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const user = verifyToken(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'main-groups';
     const body = await request.json();
@@ -46,6 +61,7 @@ export async function PUT(
     const response = await fetch(`${API_BASE_URL}/accounts/${type}/${params.id}`, {
       method: 'PUT',
       headers: {
+        Authorization: request.headers.get('Authorization') || '',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -58,10 +74,10 @@ export async function PUT(
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error:', error);
     return NextResponse.json(
-      { error: 'Failed to update item' },
+      { error: 'Failed to update item', message: error.message },
       { status: 500 }
     );
   }
@@ -73,12 +89,18 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const user = verifyToken(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'main-groups';
 
     const response = await fetch(`${API_BASE_URL}/accounts/${type}/${params.id}`, {
       method: 'DELETE',
       headers: {
+        Authorization: request.headers.get('Authorization') || '',
         'Content-Type': 'application/json',
       },
     });
@@ -90,10 +112,10 @@ export async function DELETE(
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error:', error);
     return NextResponse.json(
-      { error: 'Failed to delete item' },
+      { error: 'Failed to delete item', message: error.message },
       { status: 500 }
     );
   }

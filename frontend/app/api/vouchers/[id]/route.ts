@@ -5,17 +5,19 @@ import { verifyToken } from '@/lib/middleware/auth';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const user = verifyToken(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const backendUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/purchase-orders`;
-    const url = new URL(request.url);
-    
-    const response = await fetch(`${backendUrl}?${url.searchParams.toString()}`, {
+    const backendUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/vouchers/${params.id}`;
+
+    const response = await fetch(backendUrl, {
       method: 'GET',
       headers: {
         Authorization: request.headers.get('Authorization') || '',
@@ -30,31 +32,32 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Purchase orders fetch error:', error);
+    console.error('Voucher fetch error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch purchase orders', message: error.message },
+      { error: 'Failed to fetch voucher', message: error.message },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const user = verifyToken(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const backendUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/purchase-orders`;
+    const backendUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/vouchers/${params.id}`;
 
     const response = await fetch(backendUrl, {
-      method: 'POST',
+      method: 'DELETE',
       headers: {
-        'Content-Type': 'application/json',
         Authorization: request.headers.get('Authorization') || '',
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
     });
 
     const data = await response.json();
@@ -62,11 +65,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(data, { status: response.status });
     }
 
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Purchase order creation error:', error);
+    console.error('Voucher delete error:', error);
     return NextResponse.json(
-      { error: 'Failed to create purchase order', message: error.message },
+      { error: 'Failed to delete voucher', message: error.message },
       { status: 500 }
     );
   }

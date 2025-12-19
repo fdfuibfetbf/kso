@@ -4,11 +4,12 @@
   "description": "Inventory Management System Backend",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "prisma generate && tsx watch src/server.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
@@ -19,6 +20,7 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^5.7.1",
+    "@prisma/extension-accelerate": "^3.0.1",
     "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

@@ -77,6 +77,8 @@ export default function InventoryStockPage() {
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<string>('');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
   
   // Pagination
   const [page, setPage] = useState(1);
@@ -158,17 +160,34 @@ export default function InventoryStockPage() {
       if (selectedCategory) params.append('category_id', selectedCategory);
       if (selectedSubCategory) params.append('sub_category_id', selectedSubCategory);
       if (selectedItem) params.append('item_id', selectedItem);
+      if (fromDate) params.append('from_date', fromDate);
+      if (toDate) params.append('to_date', toDate);
 
+      console.log('Fetching inventory with params:', params.toString());
       const response = await api.get(`/parts-management/getItemsInventory?${params.toString()}`);
+      console.log('Inventory response:', response.data);
       
-      if (response.data.itemsInventory) {
-        setInventoryData(response.data.itemsInventory.data || []);
-        setTotal(response.data.itemsInventory.total || 0);
-        setTotalPages(Math.ceil((response.data.itemsInventory.total || 0) / limit));
+      if (response.data && response.data.itemsInventory) {
+        // Backend already filters zero quantity items, but ensure we don't show any
+        const filteredData = (response.data.itemsInventory.data || []).filter(
+          (item: InventoryItem) => item.quantity > 0
+        );
+        setInventoryData(filteredData);
+        // Use backend total count for pagination
+        setTotal(response.data.itemsInventory.total || filteredData.length);
+        setTotalPages(Math.ceil((response.data.itemsInventory.total || filteredData.length) / limit));
+      } else {
+        console.warn('Unexpected response structure:', response.data);
+        setInventoryData([]);
+        setTotal(0);
+        setTotalPages(1);
       }
     } catch (error: any) {
       console.error('Failed to fetch inventory data:', error);
+      console.error('Error details:', error.response?.data || error.message);
       setInventoryData([]);
+      setTotal(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -386,7 +405,7 @@ export default function InventoryStockPage() {
           >
             <option value="">Select...</option>
             {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id.toString()}>
+                    <option key={cat.id} value={cat.name}>
                       {cat.name}
               </option>
             ))}
@@ -405,7 +424,7 @@ export default function InventoryStockPage() {
           >
             <option value="">Select...</option>
             {subCategories.map((subCat) => (
-                    <option key={subCat.id} value={subCat.id.toString()}>
+                    <option key={subCat.id} value={subCat.name}>
                       {subCat.name}
               </option>
             ))}
@@ -429,6 +448,30 @@ export default function InventoryStockPage() {
               </option>
             ))}
           </Select>
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setPage(1);
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setPage(1);
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
         </div>
               <div className="flex gap-2">
         <Button

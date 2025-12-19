@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "tsx server.ts",
-    "dev:next": "next dev",
+    "dev": "prisma generate && tsx server.ts",
+    "dev:next": "prisma generate && next dev",
     "build": "prisma generate && prisma db push && next build",
     "start": "next start",
     "lint": "next lint",
@@ -17,6 +17,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
     "@prisma/client": "^5.7.1",
+    "@prisma/extension-accelerate": "^3.0.1",
     "axios": "^1.6.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -31,6 +32,7 @@
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.49.2",
     "recharts": "^3.5.1",
+    "sonner": "^2.0.7",
     "zod": "^3.22.4",
     "zustand": "^4.4.7"
   },

@@ -29,6 +29,7 @@ export default function CustomersPage() {
   const [success, setSuccess] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   
   // Filters and search
   const [statusFilter, setStatusFilter] = useState<string>('Active');
@@ -153,6 +154,33 @@ export default function CustomersPage() {
       setError(err.response?.data?.error || 'Failed to delete customer');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (customerId: string, newStatus: 'A' | 'I') => {
+    if (!customerId) return;
+    
+    setUpdatingStatusId(customerId);
+    
+    try {
+      await api.put(`/customers/${customerId}`, { status: newStatus });
+      
+      // Update local state
+      setCustomers(prevCustomers => 
+        prevCustomers.map(customer => 
+          customer.id === customerId ? { ...customer, status: newStatus } : customer
+        )
+      );
+      
+      // Show success notification
+      const statusText = newStatus === 'A' ? 'Active' : 'Inactive';
+      setSuccess(`Customer status updated to ${statusText}`);
+      setTimeout(() => setSuccess(''), 2000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update customer status');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setUpdatingStatusId(null);
     }
   };
 
@@ -348,9 +376,9 @@ export default function CustomersPage() {
       {/* Filters and Search */}
       <Card className="mb-6">
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex flex-col gap-1.5 min-w-[140px]">
-              <Label htmlFor="statusFilter" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div className="md:col-span-2 flex flex-col gap-1.5">
+              <Label htmlFor="statusFilter" className="text-sm font-medium text-gray-700 whitespace-nowrap h-5 flex items-center">
                 Status
               </Label>
               <select
@@ -367,8 +395,8 @@ export default function CustomersPage() {
                 <option value="Inactive">Inactive</option>
               </select>
             </div>
-            <div className="flex flex-col gap-1.5 min-w-[120px]">
-              <Label htmlFor="searchBy" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+            <div className="md:col-span-2 flex flex-col gap-1.5">
+              <Label htmlFor="searchBy" className="text-sm font-medium text-gray-700 whitespace-nowrap h-5 flex items-center">
                 Search By
               </Label>
               <select
@@ -383,8 +411,8 @@ export default function CustomersPage() {
                 <option value="cnic">CNIC</option>
               </select>
             </div>
-            <div className="flex flex-col gap-1.5 flex-1 min-w-[200px]">
-              <Label htmlFor="searchInput" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+            <div className="md:col-span-6 flex flex-col gap-1.5">
+              <Label htmlFor="searchInput" className="text-sm font-medium text-gray-700 whitespace-nowrap h-5 flex items-center">
                 Search
               </Label>
               <Input
@@ -397,8 +425,8 @@ export default function CustomersPage() {
                 className="h-10"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-sm font-medium text-gray-700 opacity-0 pointer-events-none">
+            <div className="md:col-span-2 flex flex-col gap-1.5">
+              <Label className="text-sm font-medium text-gray-700 whitespace-nowrap h-5 flex items-center opacity-0 pointer-events-none">
                 Action
               </Label>
               <Button
@@ -468,16 +496,38 @@ export default function CustomersPage() {
                         Rs {((customer.creditLimit || 0)).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
-                          customer.status === 'A'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            customer.status === 'A' ? 'bg-green-500' : 'bg-gray-400'
-                          }`}></span>
-                          {customer.status === 'A' ? 'Active' : 'Inactive'}
-                        </span>
+                        <div className="relative inline-block">
+                          <select
+                            value={customer.status}
+                            onChange={(e) => customer.id && handleStatusChange(customer.id, e.target.value as 'A' | 'I')}
+                            disabled={updatingStatusId === customer.id}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all ${
+                              customer.status === 'A'
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            } ${updatingStatusId === customer.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            style={{
+                              appearance: 'none',
+                              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='${customer.status === 'A' ? '%2316a34a' : '%234b5563'}' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundPosition: 'right 0.5rem center',
+                              backgroundRepeat: 'no-repeat',
+                              backgroundSize: '1em 1em',
+                              paddingRight: '1.75rem',
+                              minWidth: '100px',
+                            }}
+                          >
+                            <option value="A">Active</option>
+                            <option value="I">Inactive</option>
+                          </select>
+                          {updatingStatusId === customer.id && (
+                            <span className="absolute inset-0 flex items-center justify-center">
+                              <svg className="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
