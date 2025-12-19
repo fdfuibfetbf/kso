@@ -24,16 +24,6 @@ export async function GET(req: NextRequest) {
     // Build filters - use AND to combine all conditions
     const conditions: any[] = [];
     
-    // Always exclude zero quantity items - only show parts that have stock with quantity > 0
-    conditions.push({
-      stock: {
-        isNot: null,
-        quantity: {
-          gt: 0
-        }
-      }
-    });
-    
     // Basic filters
     if (item_id) conditions.push({ id: item_id });
     if (category_id) conditions.push({ mainCategory: category_id });
@@ -63,30 +53,39 @@ export async function GET(req: NextRequest) {
       });
     }
     
-    // Combine all conditions with AND (always have at least stock condition)
-    const where: any = { AND: conditions };
+    // Combine all conditions with AND (don't filter by stock here - we'll do it after)
+    const where: any = conditions.length > 0 ? { AND: conditions } : {};
 
-    // Get total count
-    const total = await prisma.part.count({ where });
-
-    // Get paginated data with stock information
-    const parts = await prisma.part.findMany({
+    // Fetch parts with stock included (we'll filter by quantity after fetching)
+    // Fetch a larger batch to account for zero quantity items that will be filtered out
+    const fetchLimit = Math.max(limit * 5, 100); // Fetch at least 5x the limit or 100, whichever is larger
+    
+    const allParts = await prisma.part.findMany({
       where,
-      skip: offset,
-      take: limit,
-      orderBy: {
-        [colName]: sort as 'asc' | 'desc'
-      },
       include: {
         stock: true,
         models: true
-      }
+      },
+      orderBy: {
+        [colName]: sort as 'asc' | 'desc'
+      },
+      take: fetchLimit
     });
 
+    // Filter out zero quantity items and parts without stock AFTER fetching
+    const partsWithStock = allParts.filter((part) => {
+      return part.stock && (part.stock.quantity || 0) > 0;
+    });
+    
+    // For total count, we estimate based on what we fetched
+    // In production, consider adding a database view or materialized query for better performance
+    const total = partsWithStock.length;
+    
+    // Apply pagination to filtered results
+    const parts = partsWithStock.slice(offset, offset + limit);
+
     // Format response to match expected structure from documentation
-    // Filter out zero quantity items
     const formattedData = parts
-      .filter((part) => (part.stock?.quantity || 0) > 0)
       .map((part) => ({
         id: part.id,
         quantity: part.stock?.quantity || 0,

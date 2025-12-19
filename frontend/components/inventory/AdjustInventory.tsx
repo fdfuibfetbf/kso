@@ -16,6 +16,9 @@ export interface AdjustmentItem {
   previousQuantity: number;
   adjustedQuantity: number;
   newQuantity: number;
+  lastPurchaseRate?: number;
+  rate?: number;
+  total?: number;
   reason?: string;
   part?: {
     partNo: string;
@@ -23,6 +26,7 @@ export interface AdjustmentItem {
     stock?: {
       quantity: number;
     };
+    cost?: number;
   };
 }
 
@@ -32,6 +36,9 @@ export interface InventoryAdjustment {
   total: number;
   date: string;
   notes?: string;
+  subject?: string;
+  storeId?: string;
+  isAddInventory?: boolean;
   items: AdjustmentItem[];
   createdAt?: string;
   updatedAt?: string;
@@ -56,23 +63,52 @@ export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
+  // Generate adjustment number function
+  const generateAdjustmentNo = () => {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `ADJ-${year}${month}-${random}`;
+  };
+
   // Form state
-  const [formData, setFormData] = useState<InventoryAdjustment>({
-    adjustmentNo: '',
+  const [formData, setFormData] = useState<InventoryAdjustment>(() => ({
+    adjustmentNo: generateAdjustmentNo(),
     total: 0,
     date: new Date().toISOString().split('T')[0],
     notes: '',
+    subject: '',
+    storeId: '',
+    isAddInventory: true,
     items: [],
-  });
+  }));
 
   // Part selection
   const [availableParts, setAvailableParts] = useState<any[]>([]);
   const [partSearchTerm, setPartSearchTerm] = useState('');
+  const [stores, setStores] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subCategories, setSubCategories] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>('');
 
   useEffect(() => {
     fetchAdjustments();
     fetchParts();
+    fetchStores();
+    fetchCategories();
   }, [page, limit]);
+
+  useEffect(() => {
+    if (showForm && !selectedAdjustment) {
+      // Always generate a new adjustment number for new adjustments
+      setFormData(prev => ({
+        ...prev,
+        adjustmentNo: generateAdjustmentNo()
+      }));
+    }
+  }, [showForm, selectedAdjustment]);
 
   const fetchAdjustments = async () => {
     try {
@@ -97,6 +133,44 @@ export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
     }
   };
 
+  const fetchStores = async () => {
+    try {
+      const response = await api.get('/parts-management/getStoresDropDown');
+      const storesData = response.data?.store || response.data?.stores || [];
+      setStores(storesData);
+    } catch (err) {
+      console.error('Failed to fetch stores:', err);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/categories?status=A');
+      setCategories(response.data.categories || response.data || []);
+    } catch (err) {
+      console.error('Failed to fetch categories:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCategory) {
+      fetchSubCategories(selectedCategory);
+    } else {
+      setSubCategories([]);
+      setSelectedSubCategory('');
+    }
+  }, [selectedCategory]);
+
+  const fetchSubCategories = async (categoryId: string) => {
+    try {
+      const response = await api.get(`/subcategories?categoryId=${categoryId}&status=A`);
+      setSubCategories(response.data.subcategories || response.data || []);
+    } catch (err) {
+      console.error('Failed to fetch subcategories:', err);
+      setSubCategories([]);
+    }
+  };
+
   const fetchAdjustmentDetails = async (id: string) => {
     try {
       const response = await api.get(`/inventory-adjustments/${id}`);
@@ -115,6 +189,9 @@ export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
         previousQuantity: 0,
         adjustedQuantity: 0,
         newQuantity: 0,
+        lastPurchaseRate: 0,
+        rate: 0,
+        total: 0,
         reason: '',
       }],
     }));
@@ -139,13 +216,23 @@ export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
         updated[index].partNo = part.partNo;
         updated[index].description = part.description || '';
         updated[index].previousQuantity = part.stock?.quantity || 0;
+        updated[index].lastPurchaseRate = part.cost || 0;
+        // Don't auto-fill rate - user must enter it manually
+        updated[index].rate = 0;
         updated[index].newQuantity = updated[index].previousQuantity + (updated[index].adjustedQuantity || 0);
+        updated[index].total = (updated[index].rate || 0) * Math.abs(updated[index].adjustedQuantity || 0);
       }
     }
 
-    // If adjusted quantity changes, update new quantity
+    // If adjusted quantity changes, update new quantity and total
     if (field === 'adjustedQuantity') {
       updated[index].newQuantity = updated[index].previousQuantity + (value || 0);
+      updated[index].total = (updated[index].rate || 0) * Math.abs(value || 0);
+    }
+
+    // If rate changes, update total
+    if (field === 'rate') {
+      updated[index].total = (value || 0) * Math.abs(updated[index].adjustedQuantity || 0);
     }
 
     setFormData(prev => ({ ...prev, items: updated }));
@@ -154,7 +241,8 @@ export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
 
   const calculateTotal = () => {
     const total = formData.items.reduce((sum, item) => {
-      return sum + Math.abs(item.adjustedQuantity || 0);
+      const itemTotal = (item.rate || 0) * Math.abs(item.adjustedQuantity || 0);
+      return sum + itemTotal;
     }, 0);
     setFormData(prev => ({ ...prev, total }));
   };
@@ -261,7 +349,7 @@ export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
 
   const resetForm = () => {
     setFormData({
-      adjustmentNo: '',
+      adjustmentNo: generateAdjustmentNo(),
       total: 0,
       date: new Date().toISOString().split('T')[0],
       notes: '',
@@ -323,8 +411,13 @@ export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
         <Card className="shadow-lg border-2 border-primary-200 transition-all duration-300">
           <CardHeader className="bg-gradient-to-r from-primary-50 to-orange-50 border-b p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg sm:text-xl">
-                {selectedAdjustment ? 'Edit Adjustment' : 'Create New Adjustment'}
+              <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+                <div className="p-1.5 bg-blue-500 rounded text-white">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                Adjust Item Stock
               </CardTitle>
               <Button variant="ghost" onClick={() => { setShowForm(false); resetForm(); }} className="p-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,146 +428,247 @@ export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
           </CardHeader>
           <CardContent className="p-4 sm:p-6">
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                <div>
-                  <Label htmlFor="adjustmentNo">Adjustment Number</Label>
-                  <Input
-                    id="adjustmentNo"
-                    value={formData.adjustmentNo}
-                    onChange={(e) => setFormData({ ...formData, adjustmentNo: e.target.value })}
-                    placeholder="ADJ-001"
-                    className="mt-1"
+              {/* Add Inventory Toggle */}
+              <div className="flex items-center gap-3">
+                <Label htmlFor="addInventory" className="text-sm font-medium">Add Inventory</Label>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isAddInventory: !formData.isAddInventory })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    formData.isAddInventory ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.isAddInventory ? 'translate-x-6' : 'translate-x-1'
+                    }`}
                   />
-                </div>
+                </button>
+              </div>
+
+              {/* Date, Subject, Store Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
                   <Label htmlFor="date">Date *</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="date"
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      required
+                      className="pr-10"
+                    />
+                    <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="subject">Subject</Label>
                   <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    required
+                    id="subject"
+                    value={formData.subject || ''}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    placeholder="Enter subject"
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="total">Total</Label>
-                  <Input
-                    id="total"
-                    type="number"
-                    step="0.01"
-                    value={formData.total.toFixed(2)}
-                    readOnly
-                    className="mt-1 bg-gray-100"
-                  />
+                  <Label htmlFor="storeId">Store *</Label>
+                  <select
+                    id="storeId"
+                    value={formData.storeId || ''}
+                    onChange={(e) => setFormData({ ...formData, storeId: e.target.value })}
+                    required
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  >
+                    <option value="">Select...</option>
+                    {stores.map((store) => (
+                      <option key={store.id} value={store.id}>
+                        {store.name}
+                      </option>
+                    ))}
+                  </select>
+                  {!formData.storeId && (
+                    <p className="text-xs text-red-500 mt-1">Required</p>
+                  )}
                 </div>
               </div>
 
               <div className="border-t pt-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4">
-                  <h3 className="text-base sm:text-lg font-semibold">Items</h3>
-                  <Button type="button" variant="outline" onClick={handleAddItem} className="w-full sm:w-auto text-sm">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <Button 
+                    type="button" 
+                    onClick={handleAddItem} 
+                    className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded text-sm"
+                  >
+                    <svg className="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    Add Item
+                    + Add
                   </Button>
-                </div>
-
-                <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                  {formData.items.map((item, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-gray-50 transition-all duration-200 hover:bg-gray-100">
-                      <div className="flex items-start justify-between mb-3">
-                        <span className="text-xs sm:text-sm font-medium text-gray-700">Item {index + 1}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveItem(index)}
-                          className="text-red-600 hover:text-red-700 p-1 sm:p-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                        <div>
-                          <Label className="text-xs">Part *</Label>
-                          <select
-                            value={item.partId || ''}
-                            onChange={(e) => handleItemChange(index, 'partId', e.target.value)}
-                            className="mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                            required
-                          >
-                            <option value="">Select part</option>
-                            {filteredParts.map((part) => (
-                              <option key={part.id} value={part.id}>
-                                {part.partNo} - {part.description || 'No description'} (Stock: {part.stock?.quantity || 0})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <Label className="text-xs">Part Number *</Label>
-                          <Input
-                            value={item.partNo}
-                            onChange={(e) => handleItemChange(index, 'partNo', e.target.value)}
-                            placeholder="Part number"
-                            required
-                            className="text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Previous Quantity</Label>
-                          <Input
-                            type="number"
-                            value={item.previousQuantity}
-                            readOnly
-                            className="text-sm bg-gray-100"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Adjusted Quantity *</Label>
-                          <Input
-                            type="number"
-                            value={item.adjustedQuantity}
-                            onChange={(e) => handleItemChange(index, 'adjustedQuantity', parseInt(e.target.value) || 0)}
-                            placeholder="+/- quantity"
-                            required
-                            className="text-sm"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Use positive for increase, negative for decrease
-                          </p>
-                        </div>
-                        <div>
-                          <Label className="text-xs">New Quantity</Label>
-                          <Input
-                            type="number"
-                            value={item.newQuantity}
-                            readOnly
-                            className="text-sm bg-gray-100"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Reason</Label>
-                          <Input
-                            value={item.reason || ''}
-                            onChange={(e) => handleItemChange(index, 'reason', e.target.value)}
-                            placeholder="Reason for adjustment"
-                            className="text-sm"
-                          />
-                        </div>
+                  <div className="flex gap-3">
+                    <div>
+                      <Label className="text-xs">Category</Label>
+                      <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                      >
+                        <option value="">Select...</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Sub Category</Label>
+                      <select
+                        value={selectedSubCategory}
+                        onChange={(e) => setSelectedSubCategory(e.target.value)}
+                        disabled={!selectedCategory}
+                        className="mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm disabled:bg-gray-100"
+                      >
+                        <option value="">Select...</option>
+                        {subCategories.map((subCat) => (
+                          <option key={subCat.id} value={subCat.id}>
+                            {subCat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-end">
+                      <div className="text-right">
+                        <Label className="text-xs text-gray-500">Total Amount</Label>
+                        <p className="text-lg font-bold text-gray-900">{formData.total.toFixed(2)}</p>
                       </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
 
-                {formData.items.length === 0 && (
-                  <p className="text-center text-gray-500 py-8">Click "Add Item" to add items to this adjustment</p>
-                )}
+                {/* Items Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Item</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Qty in Stock</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Quantity</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Last Purchase Rate</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Rate</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Total</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.items.map((item, index) => (
+                        <tr key={index} className="border-b hover:bg-gray-50">
+                          <td className="px-4 py-2">
+                            <select
+                              value={item.partId || ''}
+                              onChange={(e) => handleItemChange(index, 'partId', e.target.value)}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              required
+                            >
+                              <option value="">Select item</option>
+                              {filteredParts.map((part) => (
+                                <option key={part.id} value={part.id}>
+                                  {part.partNo} - {part.description || 'No description'}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-2">
+                            <Input
+                              type="number"
+                              value={item.previousQuantity}
+                              disabled
+                              readOnly
+                              className="w-full text-sm bg-gray-100 cursor-not-allowed text-gray-600"
+                              tabIndex={-1}
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <div>
+                              <Input
+                                type="number"
+                                value={item.adjustedQuantity || ''}
+                                onChange={(e) => handleItemChange(index, 'adjustedQuantity', parseInt(e.target.value) || 0)}
+                                className={`w-full text-sm ${!item.adjustedQuantity ? 'border-red-300' : ''}`}
+                                required
+                                placeholder="Enter quantity"
+                              />
+                              {!item.adjustedQuantity && (
+                                <p className="text-xs text-red-500 mt-1">Required</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.lastPurchaseRate || 0}
+                              disabled
+                              readOnly
+                              className="w-full text-sm bg-gray-100 cursor-not-allowed text-gray-600"
+                              tabIndex={-1}
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <div>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.rate || ''}
+                                onChange={(e) => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)}
+                                className={`w-full text-sm ${!item.rate || item.rate === 0 ? 'border-red-300' : ''}`}
+                                required
+                                placeholder="Enter rate"
+                              />
+                              {(!item.rate || item.rate === 0) && (
+                                <p className="text-xs text-red-500 mt-1">Required</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.total || 0}
+                              disabled
+                              readOnly
+                              className="w-full text-sm bg-gray-100 cursor-not-allowed text-gray-600"
+                              tabIndex={-1}
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveItem(index)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                      {formData.items.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                            Click "+ Add" to add items to this adjustment
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div>
@@ -489,28 +683,33 @@ export default function AdjustInventory({ onClose }: AdjustInventoryProps) {
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4 border-t">
-                <Button type="submit" disabled={loading} className="flex-1 bg-primary-500 hover:bg-primary-600 text-sm sm:text-base transition-all duration-200">
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                      </svg>
-                      Saving...
-                    </span>
-                  ) : selectedAdjustment ? 'Update Adjustment' : 'Create Adjustment'}
-                </Button>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4 border-t justify-between">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => {
                     resetForm();
-                    setShowForm(false);
                   }}
-                  className="text-sm sm:text-base transition-all duration-200"
+                  className="bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-300"
                 >
-                  Cancel
+                  Reset
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded flex items-center gap-2"
+                >
+                  {loading ? (
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  Save
                 </Button>
               </div>
             </form>

@@ -34,6 +34,7 @@ interface StockTransfer {
   status: string;
   notes?: string;
   items: TransferItem[];
+  total?: number;
   createdAt?: string;
 }
 
@@ -62,6 +63,8 @@ export default function StockTransfer() {
   const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<StockTransfer | null>(null);
+  const [viewingTransfer, setViewingTransfer] = useState<StockTransfer | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   // Master Data
   const [stores, setStores] = useState<Store[]>([]);
@@ -69,20 +72,45 @@ export default function StockTransfer() {
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [availableParts, setAvailableParts] = useState<any[]>([]);
 
+  // Generate transfer number function (moved before state to avoid hoisting issues)
+  const generateTransferNo = () => {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `STR-${year}${month}-${random}`;
+  };
+
   // Form state
-  const [formData, setFormData] = useState<StockTransfer>({
-    transferNo: '',
+  const [formData, setFormData] = useState<StockTransfer>(() => ({
+    transferNo: generateTransferNo(),
     transferDate: new Date().toISOString().split('T')[0],
     status: 'draft',
     notes: '',
     items: [],
-  });
+  }));
 
+  // Auto-generate transfer number when form is shown for new transfer
   // Pagination
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    fetchTransfers();
+    fetchMasterData();
+  }, [page, limit]);
+
+  useEffect(() => {
+    if (showForm && !selectedTransfer) {
+      // Always generate a new transfer number for new transfers
+      setFormData(prev => ({
+        ...prev,
+        transferNo: generateTransferNo()
+      }));
+    }
+  }, [showForm, selectedTransfer]);
 
   // Search
   const [searchTerm, setSearchTerm] = useState('');
@@ -92,16 +120,37 @@ export default function StockTransfer() {
     fetchMasterData();
   }, [page, limit]);
 
+  // Filter transfers based on search term
+  const filteredTransfers = transfers.filter(transfer => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      transfer.transferNo?.toLowerCase().includes(search) ||
+      transfer.transferDate?.toLowerCase().includes(search) ||
+      transfer.status?.toLowerCase().includes(search) ||
+      transfer.items?.some((item: any) => 
+        item.partNo?.toLowerCase().includes(search) ||
+        item.description?.toLowerCase().includes(search)
+      )
+    );
+  });
+
   const fetchTransfers = async () => {
     try {
       setLoading(true);
-      // Simulate fetching transfers - in real implementation, this would be an API call
-      const mockTransfers: StockTransfer[] = [];
-      setTransfers(mockTransfers);
+      const response = await api.get(`/stock-transfers?page=${page}&limit=${limit}`);
+      console.log('Transfers response:', response.data);
+      
+      const transfersData = response.data?.transfers || [];
+      setTransfers(transfersData);
+      setTotal(response.data?.pagination?.total || 0);
+      setTotalPages(response.data?.pagination?.totalPages || 1);
+    } catch (err: any) {
+      console.error('Error fetching transfers:', err);
+      setError(err.response?.data?.error || 'Failed to fetch transfers');
+      setTransfers([]);
       setTotal(0);
       setTotalPages(1);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch transfers');
     } finally {
       setLoading(false);
     }
@@ -109,19 +158,57 @@ export default function StockTransfer() {
 
   const fetchMasterData = async () => {
     try {
-      // Fetch stores
+      // Fetch stores - API returns { store: [...] }
       const storesResponse = await api.get('/parts-management/getStoresDropDown');
-      setStores(storesResponse.data.stores || []);
+      console.log('Stores response:', storesResponse.data);
+      const storesData = storesResponse.data?.store || storesResponse.data?.stores || [];
+      setStores(storesData);
+      console.log('Stores set:', storesData);
 
-      // Fetch parts with inventory
-      const partsResponse = await api.get('/parts?limit=1000&status=A');
-      setAvailableParts(partsResponse.data.parts || []);
+      // Fetch parts with inventory - Backend returns { parts: [...], pagination: {...} }
+      try {
+        const partsResponse = await api.get('/parts?limit=1000&status=A');
+        console.log('Parts API response:', partsResponse);
+        console.log('Parts response data:', partsResponse.data);
+        console.log('Parts response keys:', Object.keys(partsResponse.data || {}));
+        
+        // Backend returns { parts: [...], pagination: {...} }
+        let partsData: any[] = [];
+        if (partsResponse.data) {
+          if (Array.isArray(partsResponse.data)) {
+            partsData = partsResponse.data;
+          } else if (partsResponse.data.parts && Array.isArray(partsResponse.data.parts)) {
+            partsData = partsResponse.data.parts;
+          } else if (partsResponse.data.data && Array.isArray(partsResponse.data.data)) {
+            partsData = partsResponse.data.data;
+          }
+        }
+        
+        console.log('Raw parts data length:', partsData.length);
+        
+        // Show all parts, not just those with stock (user can see what's available)
+        // But include stock information for display
+        setAvailableParts(partsData);
+        console.log('Parts set in state:', partsData.length, 'items');
+        
+        if (partsData.length === 0) {
+          console.warn('No parts returned from API. Response structure:', partsResponse.data);
+        }
+      } catch (partsError: any) {
+        console.error('Error fetching parts:', partsError);
+        console.error('Parts error response:', partsError.response?.data);
+        // Don't set error state, just log it - user can still use the form
+        setAvailableParts([]);
+      }
 
       // Fetch racks
       const racksResponse = await api.get('/racks');
-      setRacks(racksResponse.data.racks || []);
-    } catch (err) {
+      const racksData = racksResponse.data?.racks || racksResponse.data?.data || [];
+      setRacks(racksData);
+    } catch (err: any) {
       console.error('Failed to fetch master data:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      setError('Failed to load dropdown data. Please refresh the page.');
     }
   };
 
@@ -180,19 +267,12 @@ export default function StockTransfer() {
       if (part) {
         updated[index].partNo = part.partNo;
         updated[index].description = part.description || '';
-        updated[index].availableQty = part.stock?.quantity || 0;
+        // Get quantity from stock object or direct quantity field
+        updated[index].availableQty = part.stock?.quantity || part.quantity || 0;
       }
     }
 
     setFormData(prev => ({ ...prev, items: updated }));
-  };
-
-  const generateTransferNo = () => {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `STR-${year}${month}-${random}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -219,21 +299,43 @@ export default function StockTransfer() {
       setLoading(true);
       
       const transferData = {
-        ...formData,
         transferNo: formData.transferNo || generateTransferNo(),
+        transferDate: formData.transferDate,
+        status: formData.status,
+        notes: formData.notes || '',
+        items: formData.items.map(item => ({
+          partId: item.partId,
+          partNo: item.partNo,
+          description: item.description,
+          fromStore: item.fromStore,
+          fromRack: item.fromRack,
+          fromShelf: item.fromShelf,
+          toStore: item.toStore,
+          toRack: item.toRack,
+          toShelf: item.toShelf,
+          transferQty: item.transferQty,
+          availableQty: item.availableQty,
+          remarks: item.remarks
+        })),
+        fromStoreId: formData.items[0]?.fromStore,
+        toStoreId: formData.items[0]?.toStore,
       };
 
-      // In real implementation, this would be an API call
+      console.log('Creating transfer:', transferData);
+      const response = await api.post('/stock-transfers', transferData);
+      console.log('Transfer created:', response.data);
+      
       setSuccess('Stock transfer created successfully');
       resetForm();
-      fetchTransfers();
+      await fetchTransfers(); // Refresh the list
       
       setTimeout(() => {
         setShowForm(false);
         setSuccess('');
       }, 1500);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create transfer');
+      console.error('Error creating transfer:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to create transfer');
     } finally {
       setLoading(false);
     }
@@ -277,6 +379,71 @@ export default function StockTransfer() {
     }
   };
 
+  const handleView = async (transfer: StockTransfer) => {
+    try {
+      // Fetch full transfer details if needed
+      setViewingTransfer(transfer);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to load transfer details');
+    }
+  };
+
+  const handleEdit = async (transfer: StockTransfer) => {
+    try {
+      setSelectedTransfer(transfer);
+      setFormData({
+        transferNo: transfer.transferNo || generateTransferNo(),
+        transferDate: transfer.transferDate,
+        status: transfer.status,
+        notes: transfer.notes || '',
+        items: transfer.items || [],
+      });
+      setShowForm(true);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to load transfer for editing');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this transfer?')) return;
+    try {
+      setLoading(true);
+      // TODO: Implement API call to delete transfer
+      // await api.delete(`/stock-transfers/${id}`);
+      setSuccess('Transfer deleted successfully');
+      await fetchTransfers();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete transfer');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedRows(new Set(filteredTransfers.map(t => t.id || '')));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  // Calculate total for a transfer
+  const calculateTransferTotal = (transfer: StockTransfer): number => {
+    // For now, return items count or calculate based on items
+    // In production, you might want to calculate based on part costs
+    return transfer.items?.length || 0;
+  };
+
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-700',
@@ -313,8 +480,8 @@ export default function StockTransfer() {
           <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          <span className="hidden sm:inline">New Transfer</span>
-          <span className="sm:hidden">New</span>
+          <span className="hidden sm:inline">+ Transfer</span>
+          <span className="sm:hidden">+ Transfer</span>
         </Button>
       </div>
 
@@ -362,10 +529,10 @@ export default function StockTransfer() {
                   <Label htmlFor="transferNo">Transfer Number</Label>
                   <Input
                     id="transferNo"
-                    value={formData.transferNo}
-                    onChange={(e) => setFormData({ ...formData, transferNo: e.target.value })}
-                    placeholder="Auto-generated"
-                    className="mt-1"
+                    value={formData.transferNo || generateTransferNo()}
+                    disabled
+                    readOnly
+                    className="mt-1 bg-gray-100 cursor-not-allowed text-gray-600"
                   />
                 </div>
                 <div>
@@ -444,11 +611,18 @@ export default function StockTransfer() {
                             required
                           >
                             <option value="">Select part...</option>
-                            {availableParts.map((part) => (
-                              <option key={part.id} value={part.id}>
-                                {part.partNo} - {part.description || 'No description'} (Qty: {part.stock?.quantity || 0})
-                              </option>
-                            ))}
+                            {availableParts.length > 0 ? (
+                              availableParts.map((part) => {
+                                const qty = part.stock?.quantity || part.quantity || 0;
+                                return (
+                                  <option key={part.id} value={part.id}>
+                                    {part.partNo} - {part.description || 'No description'} (Qty: {qty})
+                                  </option>
+                                );
+                              })
+                            ) : (
+                              <option value="" disabled>No parts available - Check console for errors</option>
+                            )}
                           </select>
                         </div>
 
@@ -482,16 +656,20 @@ export default function StockTransfer() {
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                               <div>
                                 <Label className="text-xs text-gray-600">Store</Label>
-                                <Select
+                                <select
                                   value={item.fromStore}
                                   onChange={(e) => handleItemChange(index, 'fromStore', e.target.value)}
-                                  className="mt-1 w-full"
+                                  className="mt-1 w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs sm:text-sm transition-all"
                                 >
                                   <option value="">Select...</option>
-                                  {stores.map((store) => (
-                                    <option key={store.id} value={store.id}>{store.name}</option>
-                                  ))}
-                                </Select>
+                                  {stores.length > 0 ? (
+                                    stores.map((store) => (
+                                      <option key={store.id} value={store.id}>{store.name}</option>
+                                    ))
+                                  ) : (
+                                    <option value="" disabled>No stores available</option>
+                                  )}
+                                </select>
                               </div>
                               <div>
                                 <Label className="text-xs text-gray-600">Rack</Label>
@@ -522,16 +700,20 @@ export default function StockTransfer() {
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                               <div>
                                 <Label className="text-xs text-gray-600">Store</Label>
-                                <Select
+                                <select
                                   value={item.toStore}
                                   onChange={(e) => handleItemChange(index, 'toStore', e.target.value)}
-                                  className="mt-1 w-full"
+                                  className="mt-1 w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs sm:text-sm transition-all"
                                 >
                                   <option value="">Select...</option>
-                                  {stores.map((store) => (
-                                    <option key={store.id} value={store.id}>{store.name}</option>
-                                  ))}
-                                </Select>
+                                  {stores.length > 0 ? (
+                                    stores.map((store) => (
+                                      <option key={store.id} value={store.id}>{store.name}</option>
+                                    ))
+                                  ) : (
+                                    <option value="" disabled>No stores available</option>
+                                  )}
+                                </select>
                               </div>
                               <div>
                                 <Label className="text-xs text-gray-600">Rack</Label>
@@ -609,118 +791,178 @@ export default function StockTransfer() {
         </Card>
       )}
 
+      {/* View Modal */}
+      {viewingTransfer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4 transition-all duration-300">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300">
+            <CardHeader className="bg-gradient-to-r from-primary-50 to-orange-50 border-b p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg sm:text-xl">Transfer Details</CardTitle>
+                <Button variant="ghost" onClick={() => setViewingTransfer(null)} className="p-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-500">Transfer Number</Label>
+                    <p className="font-medium">{viewingTransfer.transferNo || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Date</Label>
+                    <p className="font-medium">{new Date(viewingTransfer.transferDate).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Status</Label>
+                    <p className="font-medium">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(viewingTransfer.status)}`}>
+                        {viewingTransfer.status.charAt(0).toUpperCase() + viewingTransfer.status.slice(1)}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Total Items</Label>
+                    <p className="font-medium text-lg text-primary-600">{viewingTransfer.items?.length || 0}</p>
+                  </div>
+                </div>
+                {viewingTransfer.notes && (
+                  <div>
+                    <Label className="text-sm text-gray-500">Notes</Label>
+                    <p className="font-medium">{viewingTransfer.notes}</p>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-sm text-gray-500 mb-2 block">Items</Label>
+                  <div className="space-y-2">
+                    {viewingTransfer.items?.map((item: TransferItem, idx) => (
+                      <div key={idx} className="border border-gray-200 rounded p-3 sm:p-4 transition-all duration-200 hover:bg-gray-50">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
+                          <div>
+                            <span className="text-gray-500">Part:</span> <span className="font-medium">{item.partNo}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">From:</span> <span className="font-medium">{item.fromStore}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">To:</span> <span className="font-medium">{item.toStore}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Qty:</span> <span className="font-medium">{item.transferQty}</span>
+                          </div>
+                        </div>
+                        {item.description && (
+                          <p className="text-xs text-gray-500 mt-2">Description: {item.description}</p>
+                        )}
+                        {item.remarks && (
+                          <p className="text-xs text-gray-500 mt-1">Remarks: {item.remarks}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Transfers Table */}
       <Card className="shadow-lg">
-        <CardHeader className="bg-gray-50 border-b">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <CardTitle className="text-lg">Transfer History</CardTitle>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <Input
-                  type="text"
-                  placeholder="Search transfers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64"
-                />
-              </div>
-              <Button variant="outline" size="sm" onClick={fetchTransfers}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Transfer No</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Items</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 w-3 h-3 sm:w-4 sm:h-4"
+                      checked={filteredTransfers.length > 0 && selectedRows.size === filteredTransfers.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                    />
+                  </th>
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Id</th>
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Total</th>
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading && transfers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center">
+                    <td colSpan={5} className="px-4 sm:px-6 py-8 sm:py-12 text-center text-gray-500 text-sm sm:text-base">
                       <div className="flex flex-col items-center gap-2">
-                        <svg className="animate-spin h-8 w-8 text-primary-500" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin h-6 w-6 text-primary-500" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                         </svg>
-                        <span className="text-gray-500">Loading transfers...</span>
+                        Loading transfers...
                       </div>
                     </td>
                   </tr>
-                ) : transfers.length === 0 ? (
+                ) : filteredTransfers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center gap-2">
-                        <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>
-                        <p className="text-gray-500">No stock transfers found</p>
-                        <p className="text-gray-400 text-sm">Click "New Transfer" to create one</p>
-                      </div>
+                    <td colSpan={5} className="px-4 sm:px-6 py-8 sm:py-12 text-center text-gray-500 text-sm sm:text-base">
+                      No transfers found. Create one to get started.
                     </td>
                   </tr>
                 ) : (
-                  transfers.map((transfer) => (
-                    <tr key={transfer.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="font-medium text-gray-900">{transfer.transferNo}</span>
+                  filteredTransfers.map((transfer) => (
+                    <tr key={transfer.id} className="hover:bg-gray-50 transition-colors duration-150">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300 w-3 h-3 sm:w-4 sm:h-4"
+                          checked={selectedRows.has(transfer.id || '')}
+                          onChange={(e) => handleSelectRow(transfer.id || '', e.target.checked)}
+                        />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">
+                        {transfer.id?.substring(transfer.id.length - 8) || 'N/A'}
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 hidden sm:table-cell">
+                        {transfer.total?.toFixed(2) || calculateTransferTotal(transfer).toFixed(2)}
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                         {new Date(transfer.transferDate).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {transfer.items.length} item(s)
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(transfer.status)}`}>
-                          {transfer.status.charAt(0).toUpperCase() + transfer.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" className="text-primary-600 hover:text-primary-700">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
+                        <div className="flex items-center gap-1 sm:gap-2 lg:gap-3">
+                          <button
+                            onClick={() => handleView(transfer)}
+                            className="text-primary-600 hover:text-primary-800 flex items-center gap-1 p-1 sm:p-2 rounded transition-all duration-200 hover:bg-primary-50"
+                            title="View"
+                          >
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                          </Button>
-                          {transfer.status === 'pending' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => transfer.id && handleApprove(transfer.id)}
-                              className="text-green-600 hover:text-green-700"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </Button>
-                          )}
-                          {(transfer.status === 'draft' || transfer.status === 'pending') && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => transfer.id && handleCancel(transfer.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </Button>
-                          )}
+                            <span className="hidden lg:inline">View</span>
+                          </button>
+                          <button
+                            onClick={() => handleEdit(transfer)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 p-1 sm:p-2 rounded transition-all duration-200 hover:bg-blue-50"
+                            title="Edit"
+                          >
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <span className="hidden lg:inline">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => transfer.id && handleDelete(transfer.id)}
+                            className="text-red-600 hover:text-red-800 flex items-center gap-1 p-1 sm:p-2 rounded transition-all duration-200 hover:bg-red-50"
+                            title="Delete"
+                          >
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            <span className="hidden lg:inline">Delete</span>
+                          </button>
                         </div>
                       </td>
                     </tr>
